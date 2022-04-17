@@ -1,0 +1,579 @@
+{% extends "layouts/base.html" %} {% block title %} Dashboard {% endblock %}
+{% block stylesheets %}{% endblock stylesheets %} {% block content %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    {{ context | json_script:'jsonData' }}
+    <script>
+        // receive data <server>
+        let X_flag = 0;
+        let Y_flag = 0;
+        let Z_flag = 0;
+        let XYZ_flag = 0;
+        let TVOC_flag = 0;
+        let i = 0;
+
+        {#let socket = new WebSocket('ws://127.0.0.1:8000/ws/polData/group_name/')#}
+        {#socket.onopen = function (e) {#}
+        {#    alert("Connection established.")#}
+        {##}
+        {#    // message debugging and test#}
+        {#    // setInterval(() => socket.send(JSON.stringify({'temp' : Math.floor(Math.random()*100) + 1,#}
+        {#    //                                                 'humid' : Math.floor(Math.random()*100) + 1,#}
+        {#    //                                                 'PM_mini' : Math.floor(Math.random()*100) + 1,#}
+        {#    //                                                 'PM' : Math.floor(Math.random()*100) + 1,#}
+        {#    //                                                 'TVOC' : Math.floor(Math.random()*100) + 1,})), 3000)#}
+        {##}
+        // }
+        {#socket.onmessage = function (e) {#}
+        {#    console.log(e.data)#}
+        {##}
+        {#    const recData = JSON.parse(e.data);#}
+        {#    dataAsync(recData)#}
+        {#    async function dataAsync(data){#}
+        {#        if (data) return data#}
+        {#        else throw new Error('not recevied data.')#}
+        {##}
+        {#    }#}
+        {#    function setTimePromise(ms){#}
+        {#        return new Promise((resolve, reject) => {#}
+        {#            setTimeout(() => resolve(), ms)#}
+        {#        })#}
+        {#    }#}
+        {##}
+        {#    // asynchronous control#}
+        {#    async function dataRender1(){#}
+        {#        await setTimePromise(3000);#}
+        {#        const asyncData = dataAsync(recData)#}
+        {#        const returnData = await asyncData;#}
+        {##}
+        {#        // const dataObjNew = dataObj['data']['datasets'][0]['data'];#}
+        {#        // dataObjNew.shift();#}
+        {#        // dataObjNew.push();#}
+        {#        //#}
+        {#        // dataObjNew[0] = returnData.temp;#}
+        {#        // dataObjNew[1] = returnData.humid;#}
+        {#        // dataObjNew[2] = returnData.PM_mini;#}
+        {#        // dataObjNew[3] = returnData.PM;#}
+        {#        // dataObjNew[4] = returnData.TVOC;#}
+        {##}
+        {#        dataObj['data']['datasets'][0]['data'] = [returnData.temp, returnData.humid, returnData.PM_mini, returnData.PM, returnData.TVOC];#}
+        {##}
+        {#        window.myLine.update()#}
+        {#    }#}
+        {#    async function dataRender2(){#}
+        {#        await setTimePromise(3000);#}
+        {#        const asyncData1 = dataAsync(recData)#}
+        {#        const returnData1 = await asyncData1;#}
+        {##}
+        {#        chart1['data']['datasets'][0]['data'] = [returnData1.total, returnData1.humid, returnData1.weather, returnData1.PM_mini, returnData1.PM];#}
+        {##}
+        {#        window.myLine1.update()#}
+        {##}
+        {#    }#}
+        {#    async function dataRender3(){#}
+        {#        await setTimePromise(3000);#}
+        {#        const asyncData2 = dataAsync(recData)#}
+        {#        const returnData2 = await asyncData2;#}
+        {#        const dataObjNew2_temp = chart2['data']['datasets'][0]['data']#}
+        {#        const dataObjNew2_humid = chart2['data']['datasets'][1]['data']#}
+        {#        const dataObjNew2_PM_mini = chart2['data']['datasets'][2]['data']#}
+        {#        const dataObjNew2_PM = chart2['data']['datasets'][3]['data']#}
+        {#        const dataObjNew2_TVOC = chart2['data']['datasets'][4]['data']#}
+        {##}
+        {#        // queue#}
+        {#        if (temp_flag === 7 && humid_flag === 7 && PM_mini_flag === 7 && PM_flag === 7 && TVOC_flag === 7){#}
+        {#            dataObjNew2_temp.shift()#}
+        {#            dataObjNew2_humid.shift()#}
+        {#            dataObjNew2_PM_mini.shift()#}
+        {#            dataObjNew2_PM.shift()#}
+        {#            dataObjNew2_TVOC.shift()#}
+        {#            dataObjNew2_temp.push(returnData2.temp)#}
+        {#            dataObjNew2_humid.push(returnData2.humid)#}
+        {#            dataObjNew2_PM_mini.push(returnData2.PM_mini)#}
+        {#            dataObjNew2_PM.push(returnData2.PM)#}
+        {#            dataObjNew2_TVOC.push(returnData2.TVOC)#}
+        {##}
+        {#        }else{#}
+        {#            dataObjNew2_temp.push(returnData2.temp)#}
+        {#            dataObjNew2_humid.push(returnData2.humid)#}
+        {#            dataObjNew2_PM_mini.push(returnData2.PM_mini)#}
+        {#            dataObjNew2_PM.push(returnData2.PM)#}
+        {#            dataObjNew2_TVOC.push(returnData2.TVOC)#}
+        {#            temp_flag++#}
+        {#            humid_flag++#}
+        {#            PM_mini_flag++#}
+        {#            PM_flag++#}
+        {#            TVOC_flag++#}
+        {#            console.log(temp_flag)#}
+        {#        }#}
+        {##}
+        {#        window.myLine2.update()#}
+        {##}
+        {#    }#}
+        {##}
+        {#    dataRender1();#}
+        {#    dataRender2();#}
+        {#    dataRender3();#}
+        // }
+        {#socket.onclose = function (e) {#}
+        {#    alert("Connection Closed.")#}
+        // }
+
+        const jsonData = JSON.parse(document.getElementById("jsonData").textContent);
+        console.log(jsonData)
+        console.log(jsonData.Acceleration_Z)
+        console.log(jsonData.BarPlot_Z_RMS_Values)
+        console.log(jsonData.BarPlot_Z_time)
+
+        function dataAsync(data){
+            if (data) return data
+            else throw new Error('None received data.')
+        }
+
+        // asynchronous control
+         function dataRenderX(chartData){
+
+            {#let X_rms = []#}
+            {#X_rms = {{ BarPlot_X_RMS_Values | safe }}#}
+
+            // chart_x['data']['datasets'][0]['data'] = [, chartData.humid, chartData.PM_mini, chartData.PM, chartData.TVOC];
+            const dataObject_temp = chart_x['data']['datasets'][0]['data']
+
+            if (X_flag === dataObject_temp.length){
+                dataObject_temp.shift()
+                dataObject_temp.push(chartData.BarPlot_X_RMS_Values)
+
+            }else{
+                dataObject_temp.push(chartData.BarPlot_X_RMS_Values)
+
+                X_flag++
+
+                console.log(X_flag)
+            }
+
+            window.myLine_x.update()
+        }
+        async function dataRenderY(chartData){
+
+            const dataObject_temp = chart_x['data']['datasets'][0]['data']
+
+            if (Y_flag === dataObject_temp.length){
+                dataObject_temp.shift()
+                dataObject_temp.push(chartData.BarPlot_Y_RMS_Values)
+
+            }else{
+                dataObject_temp.push(chartData.BarPlot_Y_RMS_Values)
+
+                Y_flag++
+
+                console.log(Y_flag)
+            }
+            window.myLine_y.update()
+
+        }
+        async function dataRenderZ(chartData){
+
+            const dataObject_temp = chart_z['data']['datasets'][0]['data']
+
+            // queue
+            if (Z_flag === dataObject_temp.length){
+                dataObject_temp.shift()
+                dataObject_temp.push(chartData.BarPlot_Z_RMS_Values)
+
+            }else{
+                dataObject_temp.push(chartData.BarPlot_Z_RMS_Values)
+
+                Z_flag++
+
+                console.log(Z_flag)
+            }
+
+            window.myLine_z.update()
+
+        }
+        async function dataRenderXYZ(chartData){
+            const dataObject_temp = chart_xyz['data']['datasets'][0]['data']
+
+            // queue
+            if (XYZ_flag === dataObject_temp.length){
+                dataObject_temp.shift()
+                dataObject_temp.push(chartData.BarPlot_XYZ_RMS_Values)
+
+            }else{
+                dataObject_temp.push(chartData.BarPlot_XYZ_RMS_Values)
+
+                XYZ_flag++
+
+                console.log(XYZ_flag)
+            }
+
+            window.myLine_xyz.update()
+
+        }
+
+        async function UpdateWindow(){
+            const returnData = dataAsync(() => jsonData)
+
+            await dataRenderX(returnData);
+            await dataRenderY(returnData);
+            await dataRenderZ(returnData);
+            await dataRenderXYZ(returnData);
+        }
+
+    </script>
+
+<!---   JAVA Style area  --->
+    <style>
+        /* Add some padding on document's body to prevent the content
+        to go underneath the header and footer */
+        body{
+            padding-top: 60px;
+            padding-bottom: 40px;
+        }
+        .fixed-header, .fixed-footer{
+            width: 100%;
+            position: fixed;
+            background: #333;
+            padding: 10px 0;
+            color: #fff;
+        }
+        .fixed-header{
+            top: 0;
+        }
+        .result_box{
+            padding-top: 50px;
+        }
+        .fixed-footer{
+            bottom: 0;
+        }
+        .container{
+            width: 80%;
+            margin: 0 auto; /* Center the DIV horizontally */
+        }
+        nav a{
+            color: #fff;
+            text-decoration: none;
+            padding: 7px 25px;
+            display: inline-block;
+        }
+    </style>
+
+<!---   JAVA Body area  --->
+<body>
+    <div class="fixed-header">
+        <div class>
+            <nav>
+                <a href="/"><span style="font-size: 40px;">Echo Water Air Cleaner DashBoard</span></a>
+            </nav>
+        </div>
+    </div>
+
+    <div class="result_box">
+        <div class="col-lg-3" style="float: left; max-width:400px; max-height: 700px; overflow: scroll; overflow-x:hidden;">
+
+            <h2> x축 Acceleration 그래프 </h2>
+            <div>
+                <canvas id="xAxisGraph" style="width: 400px; height: 250px;"></canvas>
+            </div>
+
+            <h2> y축 Acceleration 그래프 </h2>
+            <div>
+                <canvas id="yAxisGraph" style="width: 400px; height: 250px;"></canvas>
+            </div>
+
+            <h2> z축 Acceleration 그래프 </h2>
+            <div>
+                <canvas id="zAxisGraph" style="width: 400px; height: 250px;"></canvas>
+            </div>
+
+        </div>
+        <div class="col-lg-3" style="float: left; max-width:800px; max-height: 650px; overflow: scroll; overflow-x:hidden;">
+
+            <h1> x, y, z축 종합 Acceleration 그래프 </h1>
+            <div>
+                <canvas id="xyzAxisGraph" style="width: 800px; height: 550px;"></canvas>
+            </div>
+        </div>
+        <!---
+        <div class="col-lg-1"></div>
+        -->
+    </div>
+
+</body>
+
+<!---   JAVA Script area  --->
+
+<script>
+
+const chart_x = {
+
+    // type: 'line',
+    // data: {
+    //     labels: [1,2,3,4,5,6],
+    //     datasets: [{
+    //         label: 'Real time data',
+    //         data: [12, 19, 3, 5, 2, 3],
+    //     }]
+    // },
+    // options: {
+    //     scales: {
+    //         yAxes: [{
+    //             ticks: {
+    //                 beginAtZero: true
+    //             }
+    //         }]
+    //     }
+    // }
+
+    type: 'line',
+    data: {
+        // x axis label; x축
+        labels: {{ context.BarPlot_X_time | safe}},
+        datasets: [{
+            label: 'Acceleration X 축',
+            backgroundColor: {{ context.backgroundColor | safe }},
+            borderColor: {{ context.borderColor | safe }},
+
+            // x 축에 대응되는 값; y축
+            data: {{ context.BarPlot_X_RMS_Values | safe}},
+            //data: [3, 3, 3, 3, 3],
+            fill: false
+        }]
+    },
+    options: {
+        scales: {
+            y: {
+                ticks: {
+                    beginAtZero: true,
+                    //stepSize: 0.05
+                },
+                title: {
+                    display: true,
+                    labelString: 'Acceleration [g]'
+                }
+            },
+            x: {
+                ticks: {
+                    beginAtZero: true,
+                    //stepSize: 0.5
+                },
+                title: {
+                    display: true,
+                    labelString: 'Time [s]'
+                }
+            }
+        },
+        animation: {
+            duration: 1,
+            onComplete: function (){
+                const chartInstance = this.chart, ctx = ctx_x;
+                ctx.font = Chart.helpers.fontString(Chart.defaults.font.size,
+                                                    Chart.defaults.font.style,
+                                                    Chart.defaults.font.family);
+                ctx.fillStyle = "purple";
+                ctx.textAlign = "center";
+                ctx.textBaseline = "bottom";
+
+                {#this.data.datasets.forEach(function (dataset, i) {#}
+                {#    const meta = chartInstance.controller.getDatasetMeta(i);#}
+                {#    meta.data.forEach(function (bar, index) {#}
+                {#        const data = dataset.data[index];#}
+                {#        ctx.fillText(data, bar._model.x, bar._model.y - 5);#}
+                {#    })#}
+                //})
+            }
+        }
+    }
+}
+const ctx_x = document.getElementById('xAxisGraph').getContext('2d');
+window.myLine_x = new Chart(ctx_x, chart_x);
+</script>
+
+<script>
+const chart_y = {
+     type: 'line',
+     data: {
+         labels: {{ context.BarPlot_Y_time | safe }},
+         datasets: [{
+             label: 'Acceleration Y 축',
+             backgroundColor: {{ context.backgroundColor | safe }},
+                 borderColor: {{ context.borderColor | safe }},
+             data: {{ context.BarPlot_Y_RMS_Values | safe }},
+             fill: false
+         }]
+     },
+    options: {
+         scales: {
+            y: {
+                ticks: {
+                    beginAtZero: true,
+                    //stepSize: 0.05
+                },
+                title: {
+                    display: true,
+                    labelString: 'Acceleration [g]'
+                }
+            },
+            x: {
+                ticks: {
+                    beginAtZero: true,
+                    //stepSize: 0.5
+                },
+                title: {
+                    display: true,
+                    labelString: 'Time [s]'
+                }
+            }
+         },
+         animation: {
+            duration: 1,
+            onComplete: function (){
+                const chartInstance = this.chart, ctx = ctx_y;
+                ctx.font = Chart.helpers.fontString(Chart.defaults.font.size,
+                                                    Chart.defaults.font.style,
+                                                    Chart.defaults.font.family);
+                ctx.fillStyle = "purple";
+                ctx.textAlign = "center";
+                ctx.textBaseline = "bottom";
+
+                {#this.data.datasets.forEach(function (dataset, i) {#}
+                {#    const meta = chartInstance.controller.getDatasetMeta(i);#}
+                {#    meta.data.forEach(function (bar, index) {#}
+                {#        const data = dataset.data[index];#}
+                {#        ctx.fillText(data, bar._model.x, bar._model.y - 5);#}
+                {#    })#}
+                //})
+            }
+        }
+    }
+}
+const ctx_y = document.getElementById('yAxisGraph').getContext('2d');
+window.myLine_y = new Chart(ctx_y, chart_y);
+</script>
+
+<script>
+
+const chart_z = {
+     type: 'line',
+     data: {
+         labels: {{ context.BarPlot_Z_time | safe }},
+         datasets: [{
+             label: 'Acceleration Z 축',
+             backgroundColor: {{ context.backgroundColor | safe }},
+             borderColor: {{ context.borderColor | safe }},
+             data: {{ context.BarPlot_Z_RMS_Values | safe }},
+             fill: false
+         }]
+     },
+     options: {
+         scales: {
+            y: {
+                ticks: {
+                    beginAtZero: true,
+                    //stepSize: 0.05
+                },
+                title: {
+                    display: true,
+                    labelString: 'Acceleration [g]'
+                }
+            },
+            x: {
+                ticks: {
+                    beginAtZero: true,
+                    //stepSize: 0.5
+                },
+                title: {
+                    display: true,
+                    labelString: 'Time [s]'
+                }
+            }
+         },
+     },
+     Animation: {
+        duration: 1,
+        onComplete: function (){
+            const chartInstance = this.chart, ctx = ctx_z;
+            ctx.font = Chart.helpers.fontString(Chart.defaults.font.size,
+                                                Chart.defaults.font.style,
+                                                Chart.defaults.font.family);
+            ctx.fillStyle = "purple";
+            ctx.textAlign = "center";
+            ctx.textBaseline = "bottom";
+
+            {#this.data.datasets.forEach(function (dataset, i) {#}
+            {#    const meta = chartInstance.controller.getDatasetMeta(i);#}
+            {#    meta.data.forEach(function (bar, index) {#}
+            {#        const data = dataset.data[index];#}
+            {#        ctx.fillText(data, bar._model.x, bar._model.y - 5);#}
+            {#    })#}
+            //})
+        }
+    }
+}
+const ctx_z = document.getElementById('zAxisGraph').getContext('2d');
+window.myLine_z = new Chart(ctx_z, chart_z);
+</script>
+
+<script>
+const chart_xyz = {
+     type: 'line',
+     data: {
+         labels: {{ context.BarPlot_XYZ_time  | safe }},
+         datasets: [
+             {
+                 label: 'Acceleration XYZ 축',
+                 backgroundColor: {{ context.backgroundColor | safe }},
+                 borderColor: {{ context.borderColor | safe }},
+                 data: {{ context.BarPlot_XYZ_RMS_Values | safe }},
+                 fill: false
+             }
+         ]
+     },
+     options: {
+         scales: {
+            y: {
+                ticks: {
+                    beginAtZero: true,
+                    //stepSize: 0.05
+                },
+                title: {
+                    display: true,
+                    labelString: 'Acceleration [g]'
+                }
+            },
+            x: {
+                ticks: {
+                    beginAtZero: true,
+                    //stepSize: 0.5
+                },
+                title: {
+                    display: true,
+                    labelString: 'Time [s]'
+                }
+            }
+         },
+         animation: {
+            duration: 1,
+            onComplete: function (){
+                const chartInstance = this.chart, ctx = ctx_xyz;
+                ctx.font = Chart.helpers.fontString(Chart.defaults.font.size,
+                                                    Chart.defaults.font.style,
+                                                    Chart.defaults.font.family);
+                ctx.fillStyle = "purple";
+                ctx.textAlign = "center";
+                ctx.textBaseline = "bottom";
+
+                {#this.data.datasets.forEach(function (dataset, i) {#}
+                {#    const meta = chartInstance.controller.getDatasetMeta(i);#}
+                {#    meta.data.forEach(function (bar, index) {#}
+                {#        const data = dataset.data[index];#}
+                {#        ctx.fillText(data, bar._model.x, bar._model.y - 5);#}
+                {#    })#}
+                //})
+            }
+        }
+     }
+}
+const ctx_xyz = document.getElementById('xyzAxisGraph').getContext('2d');
+window.myLine_xyz = new Chart(ctx_xyz, chart_xyz);
+</script>
+{% endblock content %}

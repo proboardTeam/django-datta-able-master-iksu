@@ -31,11 +31,16 @@ from gql import Client, client, gql
 from gql.transport.requests import RequestsHTTPTransport
 import requests
 from scipy import stats
-from opcua import ua, Client
-from itertools import chain
+import schedule
+import pytz
 
 serverIP = '25.9.7.151'
+# serverIP = '25.52.52.52'
+# serverIP = '25.58.137.19'
+# serverIP = '25.105.77.110'
+
 serverUrl = urlparse('http://{:s}:8000/graphql'.format(serverIP))
+
 
 @login_required(login_url="/login/")
 def index(request):
@@ -56,11 +61,11 @@ def index(request):
 
             try:
                 company_info = RequestFactorySerializer.request_company_id_check(user_info.get().company_fk_id)
-                print(company_info)
+                # print(company_info)
                 machine_info = RequestFactorySerializer.request_machine_id_check(company_info.get().company_id)
-                print(company_info)
+                # print(company_info)
                 sensor_info = RequestFactorySerializer.request_sensor_id_check(machine_info.get().machine_id)
-                print(company_info)
+                # print(company_info)
 
                 # mac_id = Sensor.objects.values_list('sensor_mac')
                 # for mac_unit in mac_id:
@@ -228,13 +233,14 @@ class GraphQLClient(object):
 
     def __init__(self, serverUrl):
         self._logger = logging.getLogger(self.__class__.__name__)
+        self.serverUrl = serverUrl
         self.connect(
             serverUrl.geturl()
         )
 
     def __enter__(self):
         self.connect(
-            serverUrl.geturl()
+            self.serverUrl.geturl()
         )
         return self
 
@@ -265,7 +271,7 @@ class GraphQLClient(object):
     def reconnect(self):
         self.disconnect()
         self.connect(
-            serverUrl.geturl()
+            self.serverUrl.geturl()
         )
 
     @Decorators.autoConnectingClient
@@ -319,7 +325,20 @@ class DataAcquisition(object):
                 # print(deviceData)
                 # print(len(values[0]))
                 # print(deviceData['vibrationArray'])
-            return (values, dates, fRanges, numSamples, sampleRates)
+
+            # valuesX, valuesY, valuesZ, fRangesX, fRangesY, fRangesZ, sampleRatesX, sampleRatesY, sampleRatesZ, hpf=3
+            if axis == "X":
+                # print(f'values={values}, fRangesX={fRanges}, sampleRatesX={sampleRates}')
+                hpf_value = hpf_loop(hpf=6, valuesX=values, fRangesX=fRanges, sampleRatesX=sampleRates)
+            elif axis == "Y":
+                hpf_value = hpf_loop(hpf=6, valuesY=values, fRangesY=fRanges, sampleRatesY=sampleRates)
+            elif axis == "Z":
+                hpf_value = hpf_loop(hpf=6, valuesZ=values, fRangesZ=fRanges, sampleRatesZ=sampleRates)
+            elif axis == "XYZ":
+                hpf_value = hpf_loop(hpf=6, valuesXYZ=values, fRangesXYZ=fRanges, sampleRatesXYZ=sampleRates)
+
+            return hpf_value, dates
+            # return (values, dates, fRanges, numSamples, sampleRates)
 
     @staticmethod
     def get_sensor_measurement(client, macId, isoDate):
@@ -374,37 +393,129 @@ class Initiation(object):
 
 
 def init(request):
-    # serverIP = '25.9.7.151'
-    # serverUrl = urlparse('http://{:s}:8000/graphql'.format(serverIP))
-
     mac_list = Sensor.objects.values_list('sensor_mac', flat=True)
     for mac_id in mac_list:
-        print(mac_id)
+        # print(mac_id)
         Initiation.get_init_data(serverUrl=serverUrl, mac_id=mac_id, period=120)
 
     return redirect("/")
 
 
-def hpf_loop(valuesX, valuesY, valuesZ, fRangesX, fRangesY, fRangesZ, sampleRatesX, sampleRatesY, sampleRatesZ):
+# transformed = data => rms | kurtosis
+# valuesX, valuesY, valuesZ, fRangesX, fRangesY, fRangesZ, sampleRatesX, sampleRatesY, sampleRatesZ, hpf=3
+def hpf_loop(**data):
     transformed = []
-    for (v, f, s) in list(zip([valuesX, valuesY, valuesZ], [fRangesX, fRangesY, fRangesZ],
-                              [sampleRatesX, sampleRatesY, sampleRatesZ])):
-        for i in range(len(v)):
-            v[i] = [d / 512.0 * f[i] for d in v[i]]
-            v[i] = HighPassFilter.perform_hpf_filtering(
-                data=v[i],
-                sampleRate=s[i],
-                hpf=3
-            )
-        transformed.append(v)
-    return transformed
+    x_valid = data.get('valuesX')
+    y_valid = data.get('valuesY')
+    z_valid = data.get('valuesZ')
+    x_range_valid = data.get('fRangesX')
+    y_range_valid = data.get('fRangesY')
+    z_range_valid = data.get('fRangesZ')
+    x_sample_valid = data.get('sampleRatesX')
+    y_sample_valid = data.get('sampleRatesY')
+    z_sample_valid = data.get('sampleRatesZ')
 
-def result_graph(request, sensor_tag):
+    x_flag = y_flag = z_flag = 1
+    if x_valid is None or not x_valid or len(x_valid) == 0:
+        x_flag = 0
+    if y_valid is None or not y_valid or len(y_valid) == 0:
+        y_flag = 0
+    if z_valid is None or not z_valid or len(z_valid) == 0:
+        z_flag = 0
+
+    if x_flag == 1 and y_flag == z_flag == 0:
+        for (v, f, s) in list(zip([x_valid], [x_range_valid], [x_sample_valid])):
+
+            # print(f'len(f) = {len(f)}')
+
+            for i in range(len(f)):
+                try:
+                    v[i] = [d / 512.0 * f[i] for d in v[i]]
+                    v[i] = HighPassFilter.perform_hpf_filtering(
+                        data=v[i],
+                        sampleRate=s[i],
+                        hpf=6
+                    )
+                    transformed.extend(v)
+
+                except TypeError:
+                    transformed.extend(v)
+
+        return transformed
+
+    elif y_flag == 1 and x_flag == z_flag == 0:
+        for (v, f, s) in list(zip([y_valid], [y_range_valid], [y_sample_valid])):
+
+            # print(f'len(f) = {len(f)}')
+
+            for i in range(len(f)):
+                try:
+                    v[i] = [d / 512.0 * f[i] for d in v[i]]
+                    v[i] = HighPassFilter.perform_hpf_filtering(
+                        data=v[i],
+                        sampleRate=s[i],
+                        hpf=6
+                    )
+                    transformed.extend(v)
+
+                except TypeError:
+                    transformed.extend(v)
+
+        return transformed
+
+    elif z_flag == 1 and x_flag == y_flag:
+        for (v, f, s) in list(zip([z_valid], [z_range_valid], [z_sample_valid])):
+
+            # print(f'len(f) = {len(f)}')
+
+            for i in range(len(f)):
+                try:
+                    v[i] = [d / 512.0 * f[i] for d in v[i]]
+                    v[i] = HighPassFilter.perform_hpf_filtering(
+                        data=v[i],
+                        sampleRate=s[i],
+                        hpf=6
+                    )
+                    transformed.extend(v)
+
+                except TypeError:
+                    transformed.extend(v)
+
+        return transformed
+
+    elif x_flag == y_flag == z_flag == 1:
+        for (v, f, s) in list(zip([x_valid, y_valid, z_valid], [x_range_valid, y_range_valid, z_range_valid],
+                                  [x_sample_valid, y_sample_valid, z_sample_valid])):
+
+            # print(f'len(f) = {len(f)}')
+
+            for i in range(len(f)):
+                try:
+                    v[i] = [d / 512.0 * f[i] for d in v[i]]
+                    v[i] = HighPassFilter.perform_hpf_filtering(
+                        data=v[i],
+                        sampleRate=s[i],
+                        hpf=6
+                    )
+                    transformed.extend(v)
+
+                except TypeError:
+                    transformed.extend(v)
+
+        return transformed
+
+    else:
+        return None
+
+
+def rms(ndarray):
+    return np.sqrt(np.mean(ndarray ** 2))
+
+
+# request,
+def result_json(sensor_tag):
     logging.basicConfig(level=logging.INFO)
     logging.getLogger("graphql").setLevel(logging.WARNING)
-
-    serverIP = '25.9.7.151'
-    serverUrl = urlparse('http://{:s}:8000/graphql'.format(serverIP))
 
     # sensor = Sensor.objects.filter(sensor_tag=sensor_tag)
     # mac_id = sensor.get().sensor_mac
@@ -418,168 +529,641 @@ def result_graph(request, sensor_tag):
     # serverIP = '25.9.7.151'
     # serverUrl = urlparse('http://{:s}:8000/graphql'.format(serverIP))
 
+    sensor = RequestFactorySerializer.request_sensor_name_check(sensor_tag)
+
     # replace xx:xx:xx:xx with your sensors macId
     # macId = '82:8e:2c:a3' #BKT
     # macId = 'c7:f0:3e:b4'  # KPU
     # macId='94:f3:9e:df' #SKT1
     # macId='05:92:6d:a7' #SKT2
-    macId = '95:b0:30:c5'
+    mac_id = sensor.get().sensor_mac
 
     # change settings
     hpf = 6  # high pass filter (Hz)
-    endtime = datetime.datetime.now() - datetime.timedelta(minutes=30)
-    starttime = endtime - datetime.timedelta(minutes=10)
-    endtime = endtime.isoformat()
-    starttime = starttime.isoformat()
+    # endtime = datetime.datetime.now() - datetime.timedelta(minutes=30)
+    # starttime = endtime - datetime.timedelta(minutes=10)
+
+    # endtime = datetime.datetime.now() - datetime.timedelta(hours=9)
+    # starttime = endtime - datetime.timedelta(hours=12)
+
+    # endtime = endtime.isoformat()
+    # starttime = starttime.isoformat()
+
+    endtime = time.time() - 3600 * 48
+    starttime = endtime - 3600 * 48
+
+    # end_time_stamp_str = datetime.datetime.fromtimestamp(endtime).strftime("%Y-%m-%dT%H:%M:%S.%f+00:00")
+    # start_time_stamp_str = datetime.datetime.fromtimestamp(starttime).strftime("%Y-%m-%dT%H:%M:%S.%f+00:00")
+
+    end_time_stamp_str = "2022-03-25"
+    start_time_stamp_str = "2022-03-24"
+
+
+    print(f'start time = {start_time_stamp_str}, end time = {end_time_stamp_str}')
+
+    # endtime = "2022-04-12"
+    # starttime = "2022-04-13"
+
     timeZone = "Asia/Seoul"  # local time zone
     limit = 1000  # limit limits the number of returned measurements
     axisX = 'X'  # axis allows to select data from only 1 or multiple axes
     axisY = 'Y'  # axis allows to select data from only 1 or multiple axes
     axisZ = 'Z'  # axis allows to select data from only 1 or multiple axes
+    axis_xyz = 'XYZ'
 
-
-    (valuesX, datesX, fRangesX, numSamples, sampleRatesX) = DataAcquisition.get_sensor_data(
-        serverUrl=serverUrl,
-        macId=macId,
-        starttime=starttime,
-        endtime=endtime,
-        limit=limit,
-        axis=axisX
-    )
-    (valuesY, datesY, fRangesY, numSamples, sampleRatesY) = DataAcquisition.get_sensor_data(
-        serverUrl=serverUrl,
-        macId=macId,
-        starttime=starttime,
-        endtime=endtime,
-        limit=limit,
-        axis=axisY
-    )
-    (valuesZ, datesZ, fRangesZ, numSamples, sampleRatesZ) = DataAcquisition.get_sensor_data(
-        serverUrl=serverUrl,
-        macId=macId,
-        starttime=starttime,
-        endtime=endtime,
-        limit=limit,
-        axis=axisZ
-    )
-    (dateT, temperature) = DataAcquisition.get_temperature_data(
-        serverUrl=serverUrl,
-        macId=macId
-    )
+    # (valuesX, datesX, fRangesX, numSamples, sampleRatesX) = DataAcquisition.get_sensor_data(
+    #     serverUrl=serverUrl,
+    #     macId=mac_id,
+    #     starttime=start_time_stamp_str,
+    #     endtime=end_time_stamp_str,
+    #     limit=limit,
+    #     axis=axisX
+    # )
+    # (valuesY, datesY, fRangesY, numSamples, sampleRatesY) = DataAcquisition.get_sensor_data(
+    #     serverUrl=serverUrl,
+    #     macId=mac_id,
+    #     starttime=start_time_stamp_str,
+    #     endtime=end_time_stamp_str,
+    #     limit=limit,
+    #     axis=axisY
+    # )
+    # (valuesZ, datesZ, fRangesZ, numSamples, sampleRatesZ) = DataAcquisition.get_sensor_data(
+    #     serverUrl=serverUrl,
+    #     macId=mac_id,
+    #     starttime=start_time_stamp_str,
+    #     endtime=end_time_stamp_str,
+    #     limit=limit,
+    #     axis=axisZ
+    # )
 
     RmsTimeValue = []  # stores XRms time value
     XRmsRawValue = []  # stores XRms raw value
     YRmsRawValue = []  # stores YRms raw value
     ZRmsRawValue = []  # stores ZRms raw value
+
     gKurtXRawValue = []  # stores XKurt raw value
     gKurtYRawValue = []  # stores YKurt raw value
     gKurtZRawValue = []  # stores ZKurt raw value
+
     boardTemperatureValue = []  # stores boardTemperature raw Value
 
-    # convert vibration data to 'g' units
-    for i in range(len(fRangesX)):
-        valuesX[i] = [d / 512.0 * fRangesX[i] for d in valuesX[i]]
-        valuesX[i] = HighPassFilter.perform_hpf_filtering(
-            data=valuesX[i],
-            sampleRate=sampleRatesX[i],
-            hpf=hpf
-        )
+    # values = data
+    (values_x, datesX) = DataAcquisition.get_sensor_data(
+        serverUrl=serverUrl,
+        macId=mac_id,
+        starttime=start_time_stamp_str,
+        endtime=end_time_stamp_str,
+        limit=limit,
+        axis=axisX
+    )
 
-    for i in range(len(fRangesY)):
-        valuesY[i] = [d / 512.0 * fRangesY[i] for d in valuesY[i]]
-        valuesY[i] = HighPassFilter.perform_hpf_filtering(
-            data=valuesY[i],
-            sampleRate=sampleRatesY[i],
-            hpf=hpf
-        )
-
-    for i in range(len(fRangesZ)):
-        valuesZ[i] = [d / 512.0 * fRangesZ[i] for d in valuesZ[i]]
-
-        valuesZ[i] = HighPassFilter.perform_hpf_filtering(
-            data=valuesZ[i],
-            sampleRate=sampleRatesZ[i],
-            hpf=hpf
-        )
-
-    epochDatesX = []
+    epoch_dates_x = []
+    i = 0
     for date in datesX:
         try:
-            d = round(datetime.datetime.strptime(date, "%Y-%m-%dT%H:%M:%S.%f+00:00").timestamp() * 1000)
-        except:
+            # d = round(datetime.datetime.strptime(date, "%Y-%m-%dT%H:%M:%S.%f+00:00").timestamp() * 1000)
+            d = datetime.datetime.strptime(date, "%Y-%m-%dT%H:%M:%S.%f+00:00").timestamp()
+            epoch_dates_x.append(d)
+
+            val_x = np.array(values_x[i])
+            XRmsRawValue.append(rms(val_x))
+            gKurtXRawValue.append(stats.kurtosis(val_x))
+            i += 1
+
+        except TypeError or IndexError or ValueError:
             try:
-                d = round(datetime.datetime.strptime(date, "%Y-%m-%dT%H:%M:%S+00:00").timestamp() * 1000)
-            except:
+                # d = round(datetime.datetime.strptime(date, "%Y-%m-%dT%H:%M:%S.%f+00:00").timestamp() * 1000)
+                d = datetime.datetime.strptime(date, "%Y-%m-%dT%H:%M:%S.%f+00:00").timestamp()
+                epoch_dates_x.append(d)
+
+                XRmsRawValue.append(None)
+                gKurtXRawValue.append(None)
+                i += 1
+
+            except TypeError or IndexError or ValueError:
                 print("Error in date data format")
 
-        epochDatesX.append(d)
+    # print(f"x_val_length : {len(values_x)}, x_date_length : {len(datesX)}")
+    # print(f"x_val : {values_x}")
+    # print(f"x_rms : {XRmsRawValue}, x_kurtosis : {gKurtXRawValue}")
 
-    epochDatesY = []
+    (values_y, datesY) = DataAcquisition.get_sensor_data(
+        serverUrl=serverUrl,
+        macId=mac_id,
+        starttime=start_time_stamp_str,
+        endtime=end_time_stamp_str,
+        limit=limit,
+        axis=axisY
+    )
+
+    epoch_dates_y = []
+    i = 0
     for date in datesY:
         try:
-            d = round(datetime.datetime.strptime(date, "%Y-%m-%dT%H:%M:%S.%f+00:00").timestamp() * 1000)
-        except:
-            try:
-                d = round(datetime.datetime.strptime(date, "%Y-%m-%dT%H:%M:%S+00:00").timestamp() * 1000)
-            except:
-                print("Error in date data format")
-        epochDatesY.append(d)
+            # d = round(datetime.datetime.strptime(date, "%Y-%m-%dT%H:%M:%S.%f+00:00").timestamp() * 1000)
+            d = datetime.datetime.strptime(date, "%Y-%m-%dT%H:%M:%S.%f+00:00").timestamp()
+            epoch_dates_y.append(d)
 
-    epochDatesZ = []
+            val_y = np.array(values_y[i])
+            YRmsRawValue.append(rms(val_y))
+            gKurtYRawValue.append(stats.kurtosis(val_y))
+            i += 1
+
+        except TypeError or IndexError or ValueError:
+            try:
+                # d = round(datetime.datetime.strptime(date, "%Y-%m-%dT%H:%M:%S.%f+00:00").timestamp() * 1000)
+                d = datetime.datetime.strptime(date, "%Y-%m-%dT%H:%M:%S.%f+00:00").timestamp()
+                epoch_dates_y.append(d)
+
+                YRmsRawValue.append(None)
+                gKurtYRawValue.append(None)
+                i += 1
+
+            except TypeError or IndexError or ValueError:
+                print("Error in date data format")
+
+    (values_z, datesZ) = DataAcquisition.get_sensor_data(
+        serverUrl=serverUrl,
+        macId=mac_id,
+        starttime=start_time_stamp_str,
+        endtime=end_time_stamp_str,
+        limit=limit,
+        axis=axisZ
+    )
+
+    epoch_dates_z = []
+    i = 0
     for date in datesZ:
         try:
-            d = round(datetime.datetime.strptime(date, "%Y-%m-%dT%H:%M:%S.%f+00:00").timestamp() * 1000)
-        except:
+            # d = round(datetime.datetime.strptime(date, "%Y-%m-%dT%H:%M:%S.%f+00:00").timestamp() * 1000)
+            d = datetime.datetime.strptime(date, "%Y-%m-%dT%H:%M:%S.%f+00:00").timestamp()
+            epoch_dates_z.append(d)
+
+            val_z = np.array(values_z[i])
+            ZRmsRawValue.append(rms(val_z))
+            gKurtZRawValue.append(stats.kurtosis(val_z))
+            i += 1
+
+        except TypeError or IndexError or ValueError:
             try:
-                d = round(datetime.datetime.strptime(date, "%Y-%m-%dT%H:%M:%S+00:00").timestamp() * 1000)
-            except:
+                # d = round(datetime.datetime.strptime(date, "%Y-%m-%dT%H:%M:%S.%f+00:00").timestamp() * 1000)
+                d = datetime.datetime.strptime(date, "%Y-%m-%dT%H:%M:%S.%f+00:00").timestamp()
+                epoch_dates_z.append(d)
+
+                ZRmsRawValue.append(None)
+                gKurtZRawValue.append(None)
+                i += 1
+
+            except TypeError or IndexError or ValueError:
                 print("Error in date data format")
-        epochDatesZ.append(d)
 
+    # (values_xyz, dates_xyz) = DataAcquisition.get_sensor_data(
+    #     serverUrl=serverUrl,
+    #     macId=mac_id,
+    #     starttime=start_time_stamp_str,
+    #     endtime=end_time_stamp_str,
+    #     limit=limit,
+    #     axis=axis_xyz
+    # )
 
-    for i in range(len(valuesX)):
-        vals = np.array(valuesX[i])
-        XRmsRawValue.append(np.sqrt(np.mean(vals ** 2)))
-        gKurtXRawValue.append(stats.kurtosis(vals))
-    for i in range(len(valuesY)):
-        vals = np.array(valuesY[i])
-        YRmsRawValue.append(np.sqrt(np.mean(vals ** 2)))
-        gKurtYRawValue.append(stats.kurtosis(vals))
-    for i in range(len(valuesZ)):
-        vals = np.array(valuesZ[i])
-        ZRmsRawValue.append(np.sqrt(np.mean(vals ** 2)))
-        gKurtZRawValue.append(stats.kurtosis(vals))
+    print(f'x : {len(epoch_dates_x)}, y : {len(epoch_dates_y)}, z : {len(epoch_dates_z)}')
+
+    epoch_dates_length = 0
+    if (len(epoch_dates_x) > len(epoch_dates_y)) and (len(epoch_dates_x) > len(epoch_dates_z)):
+        epoch_dates_length = len(epoch_dates_x)
+
+    elif (len(epoch_dates_y) > len(epoch_dates_x)) and (len(epoch_dates_y) > len(epoch_dates_z)):
+        epoch_dates_length = len(epoch_dates_y)
+
+    elif (len(epoch_dates_z) > len(epoch_dates_x)) and (len(epoch_dates_z) > len(epoch_dates_y)):
+        epoch_dates_length = len(epoch_dates_z)
+
+    (dateT, temperature) = DataAcquisition.get_temperature_data(
+        serverUrl=serverUrl,
+        macId=mac_id
+    )
+
+    # convert vibration data to 'g' units
+    # for i in range(len(fRangesX)):
+    #     valuesX[i] = [d / 512.0 * fRangesX[i] for d in valuesX[i]]
+    #     valuesX[i] = HighPassFilter.perform_hpf_filtering(
+    #         data=valuesX[i],
+    #         sampleRate=sampleRatesX[i],
+    #         hpf=hpf
+    #     )
+    #
+    # for i in range(len(fRangesY)):
+    #     valuesY[i] = [d / 512.0 * fRangesY[i] for d in valuesY[i]]
+    #     valuesY[i] = HighPassFilter.perform_hpf_filtering(
+    #         data=valuesY[i],
+    #         sampleRate=sampleRatesY[i],
+    #         hpf=hpf
+    #     )
+    #
+    # for i in range(len(fRangesZ)):
+    #     valuesZ[i] = [d / 512.0 * fRangesZ[i] for d in valuesZ[i]]
+    #
+    #     valuesZ[i] = HighPassFilter.perform_hpf_filtering(
+    #         data=valuesZ[i],
+    #         sampleRate=sampleRatesZ[i],
+    #         hpf=hpf
+    #     )
+
+    # for i in range(len(valuesX)):
+    #     vals = np.array(valuesX[i])
+    #     XRmsRawValue.append(np.sqrt(np.mean(vals ** 2)))
+    #     gKurtXRawValue.append(stats.kurtosis(vals))
+    # for i in range(len(valuesY)):
+    #     vals = np.array(valuesY[i])
+    #     YRmsRawValue.append(np.sqrt(np.mean(vals ** 2)))
+    #     gKurtYRawValue.append(stats.kurtosis(vals))
+    # for i in range(len(valuesZ)):
+    #     vals = np.array(valuesZ[i])
+    #     ZRmsRawValue.append(np.sqrt(np.mean(vals ** 2)))
+    #     gKurtZRawValue.append(stats.kurtosis(vals))
+
+    x_flag = y_flag = z_flag = 1
+    if len(epoch_dates_x) == 0:
+        x_flag = 0
+    if len(epoch_dates_y) == 0:
+        y_flag = 0
+    if len(epoch_dates_z) == 0:
+        z_flag = 0
 
     # with open(
     #         'C:/Users/user/Iqunet_reshenie_old_test/Reshenie_Old_wirevibsensor/BKT_reshenie_Vibration_PWR_data12.json',
     #         'w') as json_file:
-    #     for i in range(len(epochDatesX)):
-    #         data2 = [{"serviceId": "76", "deviceId": "reshenie1", "timestamp": epochDatesX[i],
+    #     for i in range(len(epoch_dates_x)):
+    #         data2 = [{"serviceId": "76", "deviceId": "reshenie1", "timestamp": epoch_dates_x[i],
     #                   "contents": {"XRms": XRmsRawValue[i], "gKurtX": gKurtXRawValue[i], "YRms": None, "gKurtY": None,
     #                                "ZRms": None, "gKurtZ": None, "BoradTemperature": None}}]
     #         json.dump(data2, json_file, indent=4)
     #
-    #     for i in range(len(epochDatesY)):
-    #         data2 = [{"serviceId": "76", "deviceId": "reshenie1", "timestamp": epochDatesY[i],
+    #     for i in range(len(epoch_dates_y)):
+    #         data2 = [{"serviceId": "76", "deviceId": "reshenie1", "timestamp": epoch_dates_y[i],
     #                   "contents": {"XRms": None, "gKurtX": None, "YRms": YRmsRawValue[i], "gKurtY": gKurtYRawValue[i],
     #                                "ZRms": None, "gKurtZ": None, "BoradTemperature": None}}]
     #         json.dump(data2, json_file, indent=4)
     #
-    #     for i in range(len(epochDatesZ)):
-    #         data2 = [{"serviceId": "76", "deviceId": "reshenie1", "timestamp": epochDatesZ[i],
+    #     for i in range(len(epoch_dates_z)):
+    #         data2 = [{"serviceId": "76", "deviceId": "reshenie1", "timestamp": epoch_dates_z[i],
     #                   "contents": {"XRms": None, "gKurtX": None, "YRms": None, "gKurtY": None, "ZRms": ZRmsRawValue[i],
     #                                "gKurtZ": gKurtZRawValue[i], "BoradTemperature": None}}]
     #         json.dump(data2, json_file, indent=4)
 
-    data2 = [{"serviceId": "76", "deviceId": "reshenie1", "timestamp": dateT,
-              "contents": {"XRms": None, "gKurtX": None, "YRms": None, "gKurtY": None, "ZRms": None, "gKurtZ": None,
-                           "BoradTemperature": temperature}}]
-    json.dumps(data2, indent=4)
+    # convert vibration data to 'g' units and plot data
+    # franges = fRangesX | Y | Z = formatRange
+    # for i in range(len(fRangesX)):
+    #     valuesX[i] = [d / 512.0 * fRangesX[i] for d in valuesX[i]]
+    #
+    # for i in range(len(fRangesY)):
+    #     valuesY[i] = [d / 512.0 * fRangesY[i] for d in valuesY[i]]
+    #
+    # for i in range(len(fRangesZ)):
+    #     valuesZ[i] = [d / 512.0 * fRangesZ[i] for d in valuesZ[i]]
 
-    return JsonResponse({"serviceId": "76", "deviceId": "reshenie1", "timestamp": dateT,
-                         "contents": {"XRms": None, "gKurtX": None, "YRms": None, "gKurtY": None, "ZRms": None,
-                                      "gKurtZ": None,
-                                      "BoradTemperature": temperature}}, status=201)
+    # plt.figure()
+    # plt.plot(values[i])
+    # plt.title(str(dates[i]))
+
+    # json_results = None
+    # for i in range(len(epoch_dates_x)):
+    #     data2 = [{"serviceId": "76", "deviceId": "reshenie1", "timestamp": epoch_dates_x[i],
+    #               "contents": {"XRms": XRmsRawValue[i], "gKurtX": gKurtXRawValue[i], "YRms": None, "gKurtY": None,
+    #                            "ZRms": None, "gKurtZ": None, "BoradTemperature": temperature}}]
+    #     json_results = json.dumps(data2, indent=4)
+    #     json_datas = json.loads(json_results)
+    #     for json_data in json_datas:
+    #         print(json_data['contents']['XRms'])
+    #     print("=====================================================================================")
+    #
+    # for i in range(len(epoch_dates_y)):
+    #     data2 = [{"serviceId": "76", "deviceId": "reshenie1", "timestamp": epoch_dates_y[i],
+    #               "contents": {"XRms": None, "gKurtX": None, "YRms": YRmsRawValue[i], "gKurtY": gKurtYRawValue[i],
+    #                            "ZRms": None, "gKurtZ": None, "BoradTemperature": None}}]
+    #     json_results = json.dumps(data2, indent=4)
+    #     json_datas = json.loads(json_results)
+    #     for json_data in json_datas:
+    #         print(json_data['contents']['YRms'])
+    #     print("=====================================================================================")
+    #
+    # for i in range(len(epoch_dates_z)):
+    #     data2 = [{"serviceId": "76", "deviceId": "reshenie1", "timestamp": epoch_dates_z[i],
+    #               "contents": {"XRms": None, "gKurtX": None, "YRms": None, "gKurtY": None, "ZRms": ZRmsRawValue[i],
+    #                            "gKurtZ": gKurtZRawValue[i], "BoradTemperature": None}}]
+    #     json_results = json.dumps(data2, indent=4)
+    #     json_datas = json.loads(json_results)
+    #     for json_data in json_datas:
+    #         print(json_data['contents']['ZRms'])
+    #     print("=====================================================================================")
+
+    # inner repeat
+    epoch_dates_x_timeline = []
+    json_x_datas = []
+
+    # outer repeat
+
+    x_rms_contents = []
+    x_kurt_contents = []
+    x_board_temperatures = []
+
+    for i in range(len(epoch_dates_x)):
+        data_x = [{"serviceId": "76", "deviceId": "reshenie1", "timestamp": epoch_dates_x[i],
+                   "contents": {"XRms": XRmsRawValue[i], "gKurtX": gKurtXRawValue[i],
+                                "YRms": None, "gKurtY": None,
+                                "ZRms": None, "gKurtZ": None,
+                                "BoardTemperature": temperature}}]
+
+        # x_time_converter = datetime.datetime.fromtimestamp(epoch_dates_x[i]).strftime(
+        #     "%Y-%m-%d %H:%M:%S.%f+00:00")
+        # epoch_dates_x_timeline.append(x_time_converter)
+        epoch_dates_x_timeline.append(epoch_dates_x[i])
+        json_results = json.dumps(data_x, indent=4)
+        json_x_datas.extend(json.loads(json_results))
+
+    for json_data in json_x_datas:
+        x_rms_contents.append(json_data['contents']['XRms'])
+        x_kurt_contents.append(json_data['contents']['gKurtX'])
+        x_board_temperatures.append(json_data['contents']['BoardTemperature'])
+
+    print(f'x_rms_contents: {x_rms_contents}')
+    print(f'x_kurt_contents: {x_kurt_contents}')
+    print(f'x_board_temperatures: {x_board_temperatures}')
+    print(f'epoch_dates_x_timeline: {epoch_dates_x_timeline}')
+
+    print("=====================================================================================")
+
+    epoch_dates_y_timeline = []
+    json_y_datas = []
+    y_rms_contents = []
+    y_kurt_contents = []
+    y_board_temperatures = []
+    for i in range(len(epoch_dates_y)):
+        data_y = [{"serviceId": "76", "deviceId": "reshenie1", "timestamp": epoch_dates_y[i],
+                   "contents": {"XRms": None, "gKurtX": None,
+                                "YRms": YRmsRawValue[i], "gKurtY": gKurtYRawValue[i],
+                                "ZRms": None, "gKurtZ": None,
+                                "BoardTemperature": temperature}}]
+
+        # y_time_converter = datetime.datetime.fromtimestamp(epoch_dates_y[i]).strftime(
+        #     "%Y-%m-%d %H:%M:%S.%f+00:00")
+        # epoch_dates_y_timeline.append(y_time_converter)
+        epoch_dates_y_timeline.append(epoch_dates_y[i])
+        json_results = json.dumps(data_y, indent=4)
+        json_y_datas.extend(json.loads(json_results))
+
+    for json_data in json_y_datas:
+        y_rms_contents.append(json_data['contents']['YRms'])
+        y_kurt_contents.append(json_data['contents']['gKurtY'])
+        y_board_temperatures.append(json_data['contents']['BoardTemperature'])
+
+    print(f'y_rms_contents: {y_rms_contents}')
+    print(f'y_kurt_contents: {y_kurt_contents}')
+    print(f'y_board_temperatures: {y_board_temperatures}')
+    print(f'epoch_dates_y_timeline: {epoch_dates_y_timeline}')
+
+    print("=====================================================================================")
+
+    epoch_dates_z_timeline = []
+    json_z_datas = []
+    z_rms_contents = []
+    z_kurt_contents = []
+    z_board_temperatures = []
+    for i in range(len(epoch_dates_z)):
+        data_z = [{"serviceId": "76", "deviceId": "reshenie1", "timestamp": epoch_dates_z[i],
+                   "contents": {"XRms": None, "gKurtX": None,
+                                "YRms": None, "gKurtY": None,
+                                "ZRms": ZRmsRawValue[i], "gKurtZ": gKurtZRawValue[i],
+                                "BoardTemperature": temperature}}]
+
+        # z_time_converter = datetime.datetime.fromtimestamp(epoch_dates_z[i]).strftime(
+        #     "%Y-%m-%d %H:%M:%S.%f+00:00")
+        # epoch_dates_z_timeline.append(z_time_converter)
+        epoch_dates_z_timeline.append(epoch_dates_z[i])
+        json_results = json.dumps(data_z, indent=4)
+        json_z_datas.extend(json.loads(json_results))
+
+    for json_data in json_z_datas:
+        z_rms_contents.append(json_data['contents']['ZRms'])
+        z_kurt_contents.append(json_data['contents']['gKurtZ'])
+        z_board_temperatures.append(json_data['contents']['BoardTemperature'])
+
+    print(f'z_rms_contents: {z_rms_contents}')
+    print(f'z_kurt_contents: {z_kurt_contents}')
+    print(f'z_board_temperatures: {z_board_temperatures}')
+    print(f'epoch_dates_z_timeline: {epoch_dates_z_timeline}')
+
+    print("=====================================================================================")
+
+    return [x_rms_contents, y_rms_contents, z_rms_contents], [x_kurt_contents, y_kurt_contents, z_kurt_contents], \
+           [x_board_temperatures, y_board_temperatures, z_board_temperatures], \
+           [epoch_dates_x_timeline, epoch_dates_y_timeline, epoch_dates_z_timeline], \
+           [x_flag, y_flag, z_flag]
+
+    # data2 = [{"serviceId": "76", "deviceId": "reshenie1", "timestamp": dateT,
+    #                      "contents": {"XRms": None, "gKurtX": None,
+    #                                   "YRms": None, "gKurtY": None,
+    #                                   "ZRms": None, "gKurtZ": None,
+    #                                   "BoradTemperature": temperature}}]
+    # json_results = json.dumps(data2, indent=4)
+
+    # if x_flag == 1 and y_flag == z_flag:
+    #
+    #     return x_rms_contents, x_kurt_contents, x_board_temperatures, epoch_dates_x_timeline, x_flag, y_flag, z_flag
+    #     # return JsonResponse({'RMS': x_rms_contents, 'Kurtosis': x_kurt_contents, 'nowTime': epoch_dates_x_timeline},
+    #     #                     status=201)
+    #
+    # elif y_flag == 1 and x_flag == z_flag:
+    #
+    #     return y_rms_contents, y_kurt_contents, y_board_temperatures, epoch_dates_y_timeline, x_flag, y_flag, z_flag
+    #     # return JsonResponse({'RMS': y_rms_contents, 'Kurtosis': y_kurt_contents, 'nowTime': epoch_dates_y_timeline},
+    #     #                     status=201)
+    #
+    # elif z_flag == 1 and x_flag == y_flag:
+    #
+    #     return z_rms_contents, z_kurt_contents, z_board_temperatures, epoch_dates_z_timeline, x_flag, y_flag, z_flag
+    #     # return JsonResponse({'RMS': z_rms_contents, 'Kurtosis': z_kurt_contents, 'nowTime': epoch_dates_z_timeline},
+    #     #                     status=201)
+
+    # return JsonResponse({"serviceId": "76", "deviceId": "reshenie1", "timestamp": dateT,
+    #                      "contents": {"XRms": None, "gKurtX": None,
+    #                                   "YRms": None, "gKurtY": None,
+    #                                   "ZRms": None, "gKurtZ": None,
+    #                                   "BoradTemperature": temperature}}, status=201)
+
+
+def show_graph(request, sensor_tag):
+    x, y, z, xyz = 0, 1, 2, 3
+
+    # RMS (rms acceleration; rms 가속도 : 일정 시간 동안의 가속도 제곱의 평균의 제곱근
+    my_rms, my_kurtosis, my_board_temperatures, my_time, flags = result_json(sensor_tag)
+
+    # you can change graph parameters
+    acceleration_x = []
+    acceleration_y = []
+    acceleration_z = []
+    acceleration_xyz = []
+
+    bar_plot_x = []
+    bar_plot_y = []
+    bar_plot_z = []
+    bar_plot_xyz = []
+
+    bar_plot_x_rms_values = []
+    bar_plot_y_rms_values = []
+    bar_plot_z_rms_values = []
+    bar_plot_xyz_rms_values = []
+
+    bar_plot_x_kurtosis_values = []
+    bar_plot_y_kurtosis_values = []
+    bar_plot_z_kurtosis_values = []
+    bar_plot_xyz_kurtosis_values = []
+
+    bar_plot_x_board_temperatures = []
+    bar_plot_y_board_temperatures = []
+    bar_plot_z_board_temperatures = []
+    bar_plot_xyz_board_temperatures = []
+
+    bar_plot_x_time = []
+    bar_plot_y_time = []
+    bar_plot_z_time = []
+    bar_plot_xyz_time = []
+
+    background_color = []
+    border_color = []
+
+    if flags[x] == 1 and flags[y] == flags[z]:
+        date_list_x = []
+        base_time = my_time[x][0]
+        for i in range(len(my_time[x])):
+            date_list_x.append(my_time[x][i] - base_time)
+
+        bar_plot_x_rms_values = my_rms[x]
+        bar_plot_x_kurtosis_values = my_kurtosis[x]
+        bar_plot_x_board_temperatures = my_board_temperatures[x]
+        bar_plot_x_time = date_list_x
+
+        x_step_size = 0
+        for i in range(1, len(bar_plot_x_time)):
+            acceleration_x.append(x_step_size)
+            background_color.append('#3e95cd')
+            border_color.append('#3e95cd')
+            x_step_size += 0.5
+
+    elif flags[y] == 1 and flags[x] == flags[z]:
+        date_list_y = []
+        base_time = my_time[y][0]
+        for i in range(len(my_time[y])):
+            date_list_y.append(my_time[y][i] - base_time)
+
+        bar_plot_y_rms_values = my_rms[y]
+        bar_plot_y_kurtosis_values = my_kurtosis[y]
+        bar_plot_y_board_temperatures = my_board_temperatures[y]
+        bar_plot_y_time = date_list_y
+
+        y_step_size = 0
+        for i in range(1, len(bar_plot_y_time)):
+            acceleration_y.append(y_step_size)
+            background_color.append('#3e95cd')
+            border_color.append('#3e95cd')
+            y_step_size += 0.5
+
+    elif flags[z] == 1 and flags[x] == flags[y]:
+        date_list_z = [0, ]
+        base_time = my_time[z][0]
+        for i in range(1, len(my_time[z])):
+            date_list_z.append(my_time[z][i] - base_time)
+
+        print(f'date_list_z: {date_list_z}')
+        bar_plot_z_rms_values = my_rms[z]
+        bar_plot_z_kurtosis_values = my_kurtosis[z]
+        bar_plot_z_board_temperatures = my_board_temperatures[z]
+        bar_plot_z_time = date_list_z
+
+        z_step_size = 0
+        for i in range(len(bar_plot_z_rms_values)):
+            acceleration_z.append(z_step_size)
+            background_color.append('#3e95cd')
+            border_color.append('#3e95cd')
+            z_step_size += 0.5
+
+    elif flags[x] == flags[y] == flags[z] == 1:
+        date_list = []
+
+        plot_x_pairs = dict(zip(my_time[x], my_rms[x]))
+        plot_y_pairs = dict(zip(my_time[y], my_rms[y]))
+        plot_z_pairs = dict(zip(my_time[z], my_rms[z]))
+
+        # dictionary 형태로 update
+        plot_y_pairs.update(plot_x_pairs)
+        plot_z_pairs.update(plot_y_pairs)
+
+        # 최종 결과 기준 key 값으로 정렬
+        results = dict(sorted(plot_z_pairs.items()))
+        time_list = list(results.keys())
+        base_time = time_list[0]
+        
+        # rms 값은 value 배열에 저장
+        value_list = list(results.values())
+        
+        # 시간을 빼주고 다른 배열에 저장
+        for i in range(1, len(results)):
+            date_list.append(time_list[i] - base_time)    
+        
+        bar_plot_xyz_rms_values = value_list
+        bar_plot_xyz_kurtosis_values = my_kurtosis[x] + my_kurtosis[y] + my_kurtosis[z]
+        bar_plot_xyz_board_temperatures = my_board_temperatures[x] + my_board_temperatures[y] + my_board_temperatures[z]
+        bar_plot_xyz_time = date_list
+
+        xyz_step_size = 0.5
+        for i in range(len(results)):
+            acceleration_xyz.append(xyz_step_size)
+            background_color.append('#3e95cd')
+            border_color.append('#3e95cd')
+            xyz_step_size += 0.5
+
+    context = {
+        'Acceleration_X': acceleration_x,
+        'Acceleration_Y': acceleration_y,
+        'Acceleration_Z': acceleration_z,
+        'Acceleration_XYZ': acceleration_xyz,
+        'BarPlot_X': bar_plot_x,
+        'BarPlot_Y': bar_plot_y,
+        'BarPlot_Z': bar_plot_z,
+        'BarPlot_XYZ': bar_plot_xyz,
+        'BarPlot_X_RMS_Values': bar_plot_x_rms_values,
+        'BarPlot_Y_RMS_Values': bar_plot_y_rms_values,
+        'BarPlot_Z_RMS_Values': bar_plot_z_rms_values,
+        'BarPlot_XYZ_RMS_Values': bar_plot_xyz_rms_values,
+        'BarPlot_X_Kurtosis_Values': bar_plot_x_kurtosis_values,
+        'BarPlot_Y_Kurtosis_Values': bar_plot_y_kurtosis_values,
+        'BarPlot_Z_Kurtosis_Values': bar_plot_z_kurtosis_values,
+        'BarPlot_XYZ_Kurtosis_Values': bar_plot_xyz_kurtosis_values,
+        'BarPlot_X_Board_Temperatures': bar_plot_x_board_temperatures,
+        'BarPlot_Y_Board_Temperatures': bar_plot_y_board_temperatures,
+        'BarPlot_z_board_temperatures': bar_plot_z_board_temperatures,
+        'BarPlot_xyz_board_temperatures': bar_plot_xyz_board_temperatures,
+        'BarPlot_X_time': bar_plot_x_time,
+        'BarPlot_Y_time': bar_plot_y_time,
+        'BarPlot_Z_time': bar_plot_z_time,
+        'BarPlot_XYZ_time': bar_plot_xyz_time,
+        'backgroundColor': background_color,
+        'borderColor': border_color,
+    }
+
+    # schedule.every(60).seconds.do(result_json)
+
+    # while request:
+    #     schedule.run_pending()
+    #     time.sleep(1)
+
+    return render(request, 'home/show-graph.html', {'context': context})
+
+
+def other_data(request):
+
+    return render(request, 'home/show-graph.html', {'context': context})
+
 
 @login_required(login_url="/login/")
 def pages(request):

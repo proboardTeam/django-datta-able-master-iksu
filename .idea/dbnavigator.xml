@@ -46,9 +46,6 @@
   <component name="DBNavigator.Project.ExecutionManager">
     <retain-sticky-names value="false" />
   </component>
-  <component name="DBNavigator.Project.FileConnectionMappingManager">
-    <mapping file-url="file://$APPLICATION_CONFIG_DIR$/consoles/db/a62f4cd2-c95c-4f3f-b0ab-58d8dc366da4/console.sql" connection-id="adf2719a-508a-4b7b-9192-e2b8843620dd" session-id="MAIN" current-schema="main" />
-  </component>
   <component name="DBNavigator.Project.MethodExecutionManager">
     <method-browser />
     <execution-history>

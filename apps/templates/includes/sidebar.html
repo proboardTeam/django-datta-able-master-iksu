@@ -19,8 +19,7 @@
         >
           <a href="/" class="nav-link"
             ><span class="pcoded-micon"><i class="feather icon-home"></i></span
-            ><span class="pcoded-mtext">Dashboard</span></a
-          >
+            ><span class="pcoded-mtext">Dashboard</span></a>
         </li>
         <li class="nav-item pcoded-menu-caption">
           <label>로그인 정보 (하단에 표기)</label>
@@ -41,6 +40,15 @@
           >
           <ul class="pcoded-submenu">
             <li class=""><a href="{% url 'init' %}" class="">초기화</a></li>
+            {% if sensor_info %}
+                {% for sensor in sensor_info %}
+    {#                    <li> {{ sensor.sensor_parent }}</li>#}
+    {#                    <li> {{ sensor.sensor_mac }}</li>#}
+                    <li> <a href="{% url 'show' sensor.sensor_tag %}">{{ sensor.sensor_tag }}</a></li>
+                {% endfor %}
+            {% else %}
+                <li class=""><a href="/" class="">등록된 센서가 없습니다.</a></li>
+            {% endif %}
             <li class=""><a href="/ui-button.html" class="">Button</a></li>
             <li class=""><a href="/ui-badges.html" class="">Badges</a></li>
             <li class="">

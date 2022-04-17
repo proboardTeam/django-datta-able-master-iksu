@@ -10,7 +10,8 @@ urlpatterns = [
 
     # The home page
     path('', views.index, name='home'),
-    path('result/<str:sensor_tag>/', views.result_graph, name='graph'),
+    # path('result/<str:sensor_tag>/', views.result_json, name='result'),
+    path('show/<str:sensor_tag>/', views.show_graph, name='show'),
     path('init/', views.init, name='init'),
 
     # Matches any html file

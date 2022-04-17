@@ -27,6 +27,12 @@ class RequestFactorySerializer(serializers.ModelSerializer):
         return sensor_id
 
     @staticmethod
+    def request_sensor_name_check(request):
+        sensor_id = Sensor.objects.filter(sensor_tag=request)
+
+        return sensor_id
+
+    @staticmethod
     def request_create(**request):
         response = CompanyProfile.save(**request)
         return response

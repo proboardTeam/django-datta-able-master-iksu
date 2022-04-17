@@ -11,6 +11,3 @@
  - company 추가
  - bootstrap 일부 조정
  - git 연동 확인
-
-
-test

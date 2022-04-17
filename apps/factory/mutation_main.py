@@ -47,13 +47,14 @@ class GraphQLClient(object):
 
     def __init__(self, serverUrl):
         self._logger = logging.getLogger(self.__class__.__name__)
+        self.serverUrl = serverUrl
         self.connect(
             serverUrl.geturl()
         )
 
     def __enter__(self):
         self.connect(
-            serverUrl.geturl()
+            self.serverUrl.geturl()
         )
         return self
 
@@ -84,7 +85,7 @@ class GraphQLClient(object):
     def reconnect(self):
         self.disconnect()
         self.connect(
-            serverUrl.geturl()
+            self.serverUrl.geturl()
         )
 
     @Decorators.autoConnectingClient
@@ -101,7 +102,7 @@ class DataAcquisition(object):
     def get_sensor_data(serverUrl, macId, starttime, endtime, limit, axis):
         with GraphQLClient(serverUrl) as client:
             querytext = '''
-{ deviceManager { device(macId:"''' + macId + '''") {
+                { deviceManager { device(macId:"''' + macId + '''") {
                 __typename
                 ... on GrapheneVibrationCombo {vibrationTimestampHistory(start:"''' + str(starttime) + '''", end:"''' + str(endtime) + '''", limit:''' + str(limit) + ''', axis:"''' + axis + '''")}
             }}}
@@ -138,6 +139,31 @@ class DataAcquisition(object):
         '''
         return client.execute_query(querytext)
 
+class Initiation(object):
+    @staticmethod
+    def set_sensor_time(serverUrl, mac_id, wakeup, capture):
+        with GraphQLClient(serverUrl) as client:
+            query_text = '''
+                        mutation{
+                            setMaxBeatPeriod(macId: "''' + mac_id + '''", period: ''' + str(wakeup) + '''){
+                            __typename
+                            ... on GrapheneSetMaxBeatPeriodMutation {ok}
+                            }
+                            setQueueInterval(macId: "''' + mac_id + '''", interval: ''' + str(capture) + '''){
+                            __typename
+                            ... on GrapheneSetQueueInterval {ok}
+                            }
+                        }
+                        '''
+        return client.execute_query(query_text)
+
+
+
+def main(sensors):
+    for s in sensors:
+        serverUrl = urlparse('http://{:s}:8000/graphql'.format(s.servIP))
+        Initiation.set_sensor_time(serverUrl, s.macID, s.wakeup, s.capture)
+        
 if __name__ == '__main__':
     logging.basicConfig(level=logging.INFO)
     logging.getLogger("graphql").setLevel(logging.WARNING)
@@ -148,9 +174,10 @@ if __name__ == '__main__':
 
     # replace xx:xx:xx:xx with your sensors macId
     macId = 'a3:40:ba:60'
-    starttime = "2022-04-13"
-    endtime = "2022-04-14"
+    starttime = "2022-02-02"
+    endtime = "2022-02-10"
 
+    Initiation.set_sensor_time(serverUrl, macId, 180,360)
     limit = 1000  # limit limits the number of returned measurements
     axis = 'XYZ'  # axis allows to select data from only 1 or multiple axes
 
@@ -166,7 +193,8 @@ if __name__ == '__main__':
 
     # convert vibration data to 'g' units and plot data
     for i in range(len(franges)):
-        values[i] = [d/512.0*franges[i] for d in values[i]]
-        plt.figure()
-        plt.plot(values[i])
-        plt.title(str(dates[i]))
+        print(i)
+        # values[i] = [d/512.0*franges[i] for d in values[i]]
+        # plt.figure()
+        # plt.plot(values[i])
+        # plt.title(str(dates[i]))

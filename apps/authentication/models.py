@@ -19,11 +19,12 @@ class UserProfileManager(BaseUserManager):
             raise ValueError("이메일을 기입해주세요.")
 
         if 'company' not in extra_fields:
-            company = CompanyProfile.objects.filter(companyprofile=extra_fields.get('company'))
-        else:
-            company = None
+            raise ValueError("회사명을 기입해주세요.")
 
-        user = self.model(username=extra_fields.get('username'), company_fk_id=company,
+        company = CompanyProfile.objects.filter(company_name=extra_fields.get('company'))
+        company_id = company.get().company_id
+        print(company_id)
+        user = self.model(username=extra_fields.get('username'), company_fk_id=company_id,
                           email=self.normalize_email(extra_fields.get('email')), password=extra_fields.get('password'))
         user.password = make_password(extra_fields.get('password'))
         user.save(using=self._db)
@@ -37,6 +38,9 @@ class UserProfileManager(BaseUserManager):
         if 'email' not in extra_fields:
             raise ValueError("이메일을 기입해주세요.")
 
+        if 'company' not in extra_fields:
+            raise ValueError("회사명을 기입해주세요.")
+
         extra_fields.setdefault("is_staff", True)
         extra_fields.setdefault("is_superuser", True)
         extra_fields.setdefault("is_admin", True)
@@ -46,19 +50,16 @@ class UserProfileManager(BaseUserManager):
         if extra_fields.get("is_superuser") is not True:
             raise ValueError("Superuser must have is_superuser=True.")
 
-        if 'company' not in extra_fields:
-            company = CompanyProfile.objects.filter(companyprofile=extra_fields.get('company'))
-            user = self.model(username=extra_fields.get('username'), company_fk_id=company.id,
-                              email=self.normalize_email(extra_fields.get('email')),
-                              password=extra_fields.get('password'),
-                              is_admin=True, is_staff=True, is_superuser=True)
-
-        else:
-            company = None
-            user = self.model(username=extra_fields.get('username'), company_fk_id=company,
-                              email=self.normalize_email(extra_fields.get('email')),
-                              password=extra_fields.get('password'),
-                              is_admin=True, is_staff=True, is_superuser=True)
+        company = CompanyProfile.objects.filter(company_name=extra_fields.get('company'))
+        try:
+            company_id = company.get().company_id
+        except CompanyProfile.DoesNotExist:
+            company_id = None
+        print(company_id)
+        user = self.model(username=extra_fields.get('username'), company_fk_id=company_id,
+                          email=self.normalize_email(extra_fields.get('email')),
+                          password=extra_fields.get('password'),
+                          is_admin=True, is_staff=True, is_superuser=True)
 
         user.password = make_password(extra_fields.get('password'))
         user.save(using=self._db)
@@ -66,12 +67,7 @@ class UserProfileManager(BaseUserManager):
         return user
 
 
-# class SelectUser:
-#     usermame = models.CharField(max_length=50)
-#     password = models.CharField(max_length=50)
-
 class UserProfile(AbstractUser):
-    # user = models.OneToOneField(AbstractUser, on_delete=models.CASCADE)
     company_fk = models.ForeignKey("factory.CompanyProfile", blank=True, null=True, related_name="companyprofile",
                                    on_delete=models.CASCADE)
     is_admin = models.BooleanField(default=False)

@@ -57,9 +57,9 @@ def dataTrans(duration):
     # sensors.append(sensorInfo('25.36.219.165', "side_spindle_2line",'11:90:77:d8')) #(S_K_ICT) 
     # sensors.append(sensorInfo('25.52.52.52', "dksw1",'11:90:77:d8')) #(T_DK) Welding_Vib_LowFQ 
     # sensors.append(sensorInfo('25.52.52.52', "dksw2",'a3:40:ba:60')) #(T_DK) Welding_Vib_HighFQ 
-    # sensors.append(sensorInfo('25.52.52.52', "dksw3",'92:7c:bd:51', '83')) 현재 동작 # (T_DK) Current_WeldingLeft
-    # sensors.append(sensorInfo('25.52.52.52', "dksw4",'ce:42:0e:97', '83')) 현재 동작 # (T_DK) Current_WeldingRight
-    sensors.append(sensorInfo('25.9.7.151', "reshenie1", ''))
+    sensors.append(sensorInfo('25.52.52.52', "dksw3",'92:7c:bd:51', '83')) # (T_DK) Current_WeldingLeft
+    sensors.append(sensorInfo('25.52.52.52', "dksw4",'ce:42:0e:97', '83')) # (T_DK) Current_WeldingRight
+    # sensors.append(sensorInfo('25.9.7.151', "reshenie1", ''))
     # sensors.append(sensorInfo('25.52.52.52', "dksw5",'92:7c:bd:51')) #(T_DK) Milling_Right_Vib_HighFQ
     # sensors.append(sensorInfo('25.52.52.52', "dksw6",'ce:42:0e:97')) #(T_DK) Milling_Left_Vib_LowFQ 
 

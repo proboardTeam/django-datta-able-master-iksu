@@ -101,8 +101,8 @@ def register_user(request):
                     success = True
 
                 except DatabaseError:
-                    content = {"데이터베이스가 존재하지 않습니다.": "DatabaseError"}
-                    return HttpResponse(content, status=status.HTTP_400_BAD_REQUEST)
+                    msg = "데이터베이스가 존재하지 않습니다."
+                    return render(request, "accounts/register.html", {"form": form, "msg": msg})
 
         else:
             msg = '유효하지 않은 정보입니다.'
@@ -158,3 +158,5 @@ def account_close_view(request):
     else:
         msg = "탈퇴하시려면 로그인과 비밀번호를 입력해주세요."
         return render(request, "accounts/close-account.html", {"form": form, "msg": msg})
+
+

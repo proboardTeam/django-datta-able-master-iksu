@@ -106,25 +106,31 @@ class UserAdmin(admin.ModelAdmin):
 @admin.register(CompanyProfile)
 class CompanyAdmin(admin.ModelAdmin):
     # pass
-    list_display = ('company_name', 'user_name', 'user_email',)
+    list_display = ('company_name', 'user_name', 'user_email')
     inlines = (UserInline, MachineInline, )
 
     # obj = CompanyProfile
     def user_name(self, obj):
-        company = CompanyProfile.objects.filter(company_id=obj.company_id)
-        result = UserProfile.objects.filter(id=company.get().user_fk_id)
+        result = UserProfile.objects.filter(company_fk_id=obj.company_id).values_list('username', flat=True)
 
-        return result.get().username
+        str_list = []
+        for result_val in result:
+            str_list.append(result_val)
 
-    user_name.short_description = "username"
+        return str_list
+
+    user_name.short_description = "user_name"
 
     def user_email(self, obj):
-        company = CompanyProfile.objects.filter(company_id=obj.company_id)
-        result = UserProfile.objects.filter(id=company.get().user_fk_id)
+        result = UserProfile.objects.filter(company_fk_id=obj.company_id).values_list('email', flat=True)
 
-        return result.get().email
+        str_list = []
+        for result_val in result:
+            str_list.append(result_val)
 
-    user_email.short_description = "email"
+        return str_list
+
+    user_email.short_description = "user_email"
 
     # @staticmethod
     # def machine_name(obj):
@@ -155,7 +161,6 @@ class MachineAdmin(admin.ModelAdmin):
     def sensor_name(self, obj):
         str_list = []
         result = Sensor.objects.filter(machine_fk=obj.machine_id).values_list('sensor_tag', flat=True)
-        print(result)
         for result_val in result:
             str_list.append(result_val)
 
