@@ -120,9 +120,12 @@
 
         const jsonData = JSON.parse(document.getElementById("jsonData").textContent);
         console.log(jsonData)
-        console.log(jsonData.Acceleration_Z)
-        console.log(jsonData.BarPlot_Z_RMS_Values)
-        console.log(jsonData.BarPlot_Z_time)
+        console.log("X value" + jsonData.BarPlot_X_RMS_Values)
+        console.log("X time" + jsonData.BarPlot_X_time)
+        console.log("Y value" + jsonData.BarPlot_Y_RMS_Values)
+        console.log("Y time" + jsonData.BarPlot_Y_time)
+        console.log("Z value" + jsonData.BarPlot_Z_RMS_Values)
+        console.log("Z time" + jsonData.BarPlot_Z_time)
 
         function dataAsync(data){
             if (data) return data
@@ -140,10 +143,10 @@
 
             if (X_flag === dataObject_temp.length){
                 dataObject_temp.shift()
-                dataObject_temp.push(chartData.BarPlot_X_RMS_Values)
+                dataObject_temp.push(chartData.BarPlot_X_RMS_Values[i])
 
             }else{
-                dataObject_temp.push(chartData.BarPlot_X_RMS_Values)
+                dataObject_temp.push(chartData.BarPlot_X_RMS_Values[i])
 
                 X_flag++
 
@@ -158,10 +161,10 @@
 
             if (Y_flag === dataObject_temp.length){
                 dataObject_temp.shift()
-                dataObject_temp.push(chartData.BarPlot_Y_RMS_Values)
+                dataObject_temp.push(chartData.BarPlot_Y_RMS_Values[i])
 
             }else{
-                dataObject_temp.push(chartData.BarPlot_Y_RMS_Values)
+                dataObject_temp.push(chartData.BarPlot_Y_RMS_Values[i])
 
                 Y_flag++
 
@@ -177,10 +180,10 @@
             // queue
             if (Z_flag === dataObject_temp.length){
                 dataObject_temp.shift()
-                dataObject_temp.push(chartData.BarPlot_Z_RMS_Values)
+                dataObject_temp.push(chartData.BarPlot_Z_RMS_Values[i])
 
             }else{
-                dataObject_temp.push(chartData.BarPlot_Z_RMS_Values)
+                dataObject_temp.push(chartData.BarPlot_Z_RMS_Values[i])
 
                 Z_flag++
 
@@ -235,8 +238,6 @@
             background: #333;
             padding: 10px 0;
             color: #fff;
-        }
-        .fixed-header{
             top: 0;
         }
         .result_box{
@@ -262,7 +263,7 @@
     <div class="fixed-header">
         <div class>
             <nav>
-                <a href="/"><span style="font-size: 40px;">Echo Water Air Cleaner DashBoard</span></a>
+                <a href="/"><span style="font-size: 40px;">측정 시간 : {{ context.Measurement_Start_Time | safe }}</span></a>
             </nav>
         </div>
     </div>
@@ -329,7 +330,7 @@ const chart_x = {
         // x axis label; x축
         labels: {{ context.BarPlot_X_time | safe}},
         datasets: [{
-            label: 'Acceleration X 축',
+            label: 'Acceleration X 축 rms 값',
             backgroundColor: {{ context.backgroundColor | safe }},
             borderColor: {{ context.borderColor | safe }},
 
@@ -343,7 +344,7 @@ const chart_x = {
         scales: {
             y: {
                 ticks: {
-                    beginAtZero: true,
+                    beginAtZero: false,
                     //stepSize: 0.05
                 },
                 title: {
@@ -353,8 +354,33 @@ const chart_x = {
             },
             x: {
                 ticks: {
-                    beginAtZero: true,
+                    beginAtZero: false,
                     //stepSize: 0.5
+                    callback: function (value, index, values) {
+                        const rms_value = {{ context.BarPlot_X_time | safe}};
+                        let precision = Number((Math.abs(rms_value[index]) * 100).toPrecision(21));
+                        let converter = Math.round(precision) / 100 * Math.sign(rms_value[index]);
+                        console.log('1 : ' + converter)
+
+                        if (60.00 <= converter){
+                            precision = Number((Math.abs(rms_value[index]) * 100).toPrecision(21));
+                            converter = Math.round(precision) / 60 * Math.sign(rms_value[index])
+                            console.log('2 : ' + converter)
+
+                            if (3600.00 <= converter) {
+                                precision = Number((Math.abs(rms_value[index]) * 100).toPrecision(21));
+                                converter = Math.round(precision) / 3600 * Math.sign(rms_value[index])
+                                console.log('3 : ' + converter)
+
+                                return '+ ' + Math.round(converter) / 100 * Math.sign(rms_value[index]) + ' 시간';
+                            }
+
+                            return '+ ' + Math.round(converter) / 100 * Math.sign(rms_value[index]) + ' 분';
+
+                        }
+
+                        return '+ ' + converter + ' 초';
+                    }
                 },
                 title: {
                     display: true,
@@ -394,7 +420,7 @@ const chart_y = {
      data: {
          labels: {{ context.BarPlot_Y_time | safe }},
          datasets: [{
-             label: 'Acceleration Y 축',
+             label: 'Acceleration Y 축 rms 값',
              backgroundColor: {{ context.backgroundColor | safe }},
                  borderColor: {{ context.borderColor | safe }},
              data: {{ context.BarPlot_Y_RMS_Values | safe }},
@@ -405,7 +431,7 @@ const chart_y = {
          scales: {
             y: {
                 ticks: {
-                    beginAtZero: true,
+                    beginAtZero: false,
                     //stepSize: 0.05
                 },
                 title: {
@@ -415,8 +441,33 @@ const chart_y = {
             },
             x: {
                 ticks: {
-                    beginAtZero: true,
+                    beginAtZero: false,
                     //stepSize: 0.5
+                    callback: function (value, index, values) {
+                        const rms_value = {{ context.BarPlot_Y_time | safe}};
+                        let precision = Number((Math.abs(rms_value[index]) * 100).toPrecision(21));
+                        let converter = Math.round(precision) / 100 * Math.sign(rms_value[index]);
+                        console.log('1 : ' + converter)
+
+                        if (60.00 <= converter){
+                            precision = Number((Math.abs(rms_value[index]) * 100).toPrecision(21));
+                            converter = Math.round(precision) / 60 * Math.sign(rms_value[index])
+                            console.log('2 : ' + converter)
+
+                            if (3600.00 <= converter) {
+                                precision = Number((Math.abs(rms_value[index]) * 100).toPrecision(21));
+                                converter = Math.round(precision) / 3600 * Math.sign(rms_value[index])
+                                console.log('3 : ' + converter)
+
+                                return '+ ' + Math.round(converter) / 100 * Math.sign(rms_value[index]) + ' 시간';
+                            }
+
+                            return '+ ' + Math.round(converter) / 100 * Math.sign(rms_value[index]) + ' 분';
+
+                        }
+
+                        return '+ ' + converter + ' 초';
+                    }
                 },
                 title: {
                     display: true,
@@ -457,7 +508,7 @@ const chart_z = {
      data: {
          labels: {{ context.BarPlot_Z_time | safe }},
          datasets: [{
-             label: 'Acceleration Z 축',
+             label: 'Acceleration Z 축 rms 값',
              backgroundColor: {{ context.backgroundColor | safe }},
              borderColor: {{ context.borderColor | safe }},
              data: {{ context.BarPlot_Z_RMS_Values | safe }},
@@ -468,7 +519,7 @@ const chart_z = {
          scales: {
             y: {
                 ticks: {
-                    beginAtZero: true,
+                    beginAtZero: false,
                     //stepSize: 0.05
                 },
                 title: {
@@ -478,8 +529,33 @@ const chart_z = {
             },
             x: {
                 ticks: {
-                    beginAtZero: true,
+                    beginAtZero: false,
                     //stepSize: 0.5
+                    callback: function (value, index, values) {
+                        const rms_value = {{ context.BarPlot_Z_time | safe}};
+                        let precision = Number((Math.abs(rms_value[index]) * 100).toPrecision(21));
+                        let converter = Math.round(precision) / 100 * Math.sign(rms_value[index]);
+                        console.log('1 : ' + converter)
+
+                        if (60.00 <= converter){
+                            precision = Number((Math.abs(rms_value[index]) * 100).toPrecision(21));
+                            converter = Math.round(precision) / 60 * Math.sign(rms_value[index])
+                            console.log('2 : ' + converter)
+
+                            if (3600.00 <= converter) {
+                                precision = Number((Math.abs(rms_value[index]) * 100).toPrecision(21));
+                                converter = Math.round(precision) / 3600 * Math.sign(rms_value[index])
+                                console.log('3 : ' + converter)
+
+                                return '+ ' + Math.round(converter) / 100 * Math.sign(rms_value[index]) + ' 시간';
+                            }
+
+                            return '+ ' + Math.round(converter) / 100 * Math.sign(rms_value[index]) + ' 분';
+
+                        }
+
+                        return '+ ' + converter + ' 초';
+                    }
                 },
                 title: {
                     display: true,
@@ -520,7 +596,7 @@ const chart_xyz = {
          labels: {{ context.BarPlot_XYZ_time  | safe }},
          datasets: [
              {
-                 label: 'Acceleration XYZ 축',
+                 label: 'Acceleration XYZ 축 rms 값',
                  backgroundColor: {{ context.backgroundColor | safe }},
                  borderColor: {{ context.borderColor | safe }},
                  data: {{ context.BarPlot_XYZ_RMS_Values | safe }},
@@ -532,7 +608,7 @@ const chart_xyz = {
          scales: {
             y: {
                 ticks: {
-                    beginAtZero: true,
+                    beginAtZero: false,
                     //stepSize: 0.05
                 },
                 title: {
@@ -544,6 +620,31 @@ const chart_xyz = {
                 ticks: {
                     beginAtZero: true,
                     //stepSize: 0.5
+                    callback: function (value, index, values) {
+                        const rms_value = {{ context.BarPlot_XYZ_time | safe}};
+                        let precision = Number((Math.abs(rms_value[index]) * 100).toPrecision(21));
+                        let converter = Math.round(precision) / 100 * Math.sign(rms_value[index]);
+                        console.log('1 : ' + converter)
+
+                        if (60.00 <= converter){
+                            precision = Number((Math.abs(rms_value[index]) * 100).toPrecision(21));
+                            converter = Math.round(precision) / 60 * Math.sign(rms_value[index])
+                            console.log('2 : ' + converter)
+
+                            if (3600.00 <= converter) {
+                                precision = Number((Math.abs(rms_value[index]) * 100).toPrecision(21));
+                                converter = Math.round(precision) / 3600 * Math.sign(rms_value[index])
+                                console.log('3 : ' + converter)
+
+                                return '+ ' + Math.round(converter) / 100 * Math.sign(rms_value[index]) + ' 시간';
+                            }
+
+                            return '+ ' + Math.round(converter) / 100 * Math.sign(rms_value[index]) + ' 분';
+
+                        }
+
+                        return '+ ' + converter + ' 초';
+                    }
                 },
                 title: {
                     display: true,

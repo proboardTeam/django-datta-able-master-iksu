@@ -12,6 +12,7 @@ urlpatterns = [
     path('', views.index, name='home'),
     # path('result/<str:sensor_tag>/', views.result_json, name='result'),
     path('show/<str:sensor_tag>/', views.show_graph, name='show'),
+    path('other/<str:sensor_tag>/', views.other_data, name='current'),
     path('init/', views.init, name='init'),
 
     # Matches any html file

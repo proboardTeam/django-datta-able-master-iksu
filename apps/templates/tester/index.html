@@ -1,0 +1,394 @@
+<html lang="en">
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        // receive data <server>
+        let temp_flag = 0;
+        let humid_flag = 0;
+        let PM_mini_flag = 0;
+        let PM_flag = 0;
+        let TVOC_flag = 0;
+
+        let socket = new WebSocket('ws://127.0.0.1:8000/ws/polData/group_name/')
+        socket.onopen = function (e) {
+            alert("Connection established.")
+
+            // message debugging and test
+            // setInterval(() => socket.send(JSON.stringify({'temp' : Math.floor(Math.random()*100) + 1,
+            //                                                 'humid' : Math.floor(Math.random()*100) + 1,
+            //                                                 'PM_mini' : Math.floor(Math.random()*100) + 1,
+            //                                                 'PM' : Math.floor(Math.random()*100) + 1,
+            //                                                 'TVOC' : Math.floor(Math.random()*100) + 1,})), 3000)
+
+        }
+        socket.onmessage = function (e) {
+            console.log(e.data)
+
+            const recData = JSON.parse(e.data);
+            dataAsync(recData)
+            async function dataAsync(data){
+                if (data) return data
+                else throw new Error('not recevied data.')
+
+            }
+            function setTimePromise(ms){
+                return new Promise((resolve, reject) => {
+                    setTimeout(() => resolve(), ms)
+                })
+            }
+
+            // asynchronous control
+            async function dataRender1(){
+                await setTimePromise(3000);
+                const asyncData = dataAsync(recData)
+                const returnData = await asyncData;
+
+                // const dataObjNew = dataObj['data']['datasets'][0]['data'];
+                // dataObjNew.shift();
+                // dataObjNew.push();
+                //
+                // dataObjNew[0] = returnData.temp;
+                // dataObjNew[1] = returnData.humid;
+                // dataObjNew[2] = returnData.PM_mini;
+                // dataObjNew[3] = returnData.PM;
+                // dataObjNew[4] = returnData.TVOC;
+
+                dataObj['data']['datasets'][0]['data'] = [returnData.temp, returnData.humid, returnData.PM_mini, returnData.PM, returnData.TVOC];
+
+                window.myLine.update()
+            }
+            async function dataRender2(){
+                await setTimePromise(3000);
+                const asyncData1 = dataAsync(recData)
+                const returnData1 = await asyncData1;
+
+                chart1['data']['datasets'][0]['data'] = [returnData1.total, returnData1.humid, returnData1.weather, returnData1.PM_mini, returnData1.PM];
+
+                window.myLine1.update()
+
+            }
+            async function dataRender3(){
+                await setTimePromise(3000);
+                const asyncData2 = dataAsync(recData)
+                const returnData2 = await asyncData2;
+                const dataObjNew2_temp = chart2['data']['datasets'][0]['data']
+                const dataObjNew2_humid = chart2['data']['datasets'][1]['data']
+                const dataObjNew2_PM_mini = chart2['data']['datasets'][2]['data']
+                const dataObjNew2_PM = chart2['data']['datasets'][3]['data']
+                const dataObjNew2_TVOC = chart2['data']['datasets'][4]['data']
+
+                // queue
+                if (temp_flag === 7 && humid_flag === 7 && PM_mini_flag === 7 && PM_flag === 7 && TVOC_flag === 7){
+                    dataObjNew2_temp.shift()
+                    dataObjNew2_humid.shift()
+                    dataObjNew2_PM_mini.shift()
+                    dataObjNew2_PM.shift()
+                    dataObjNew2_TVOC.shift()
+                    dataObjNew2_temp.push(returnData2.temp)
+                    dataObjNew2_humid.push(returnData2.humid)
+                    dataObjNew2_PM_mini.push(returnData2.PM_mini)
+                    dataObjNew2_PM.push(returnData2.PM)
+                    dataObjNew2_TVOC.push(returnData2.TVOC)
+
+                }else{
+                    dataObjNew2_temp.push(returnData2.temp)
+                    dataObjNew2_humid.push(returnData2.humid)
+                    dataObjNew2_PM_mini.push(returnData2.PM_mini)
+                    dataObjNew2_PM.push(returnData2.PM)
+                    dataObjNew2_TVOC.push(returnData2.TVOC)
+                    temp_flag++
+                    humid_flag++
+                    PM_mini_flag++
+                    PM_flag++
+                    TVOC_flag++
+                    console.log(temp_flag)
+                }
+
+                window.myLine2.update()
+
+            }
+
+            dataRender1();
+            dataRender2();
+            dataRender3();
+        }
+        socket.onclose = function (e) {
+            alert("Connection Closed.")
+        }
+    </script>
+
+<!---   JAVA Style area  --->
+    <style>
+        /* Add some padding on document's body to prevent the content
+        to go underneath the header and footer */
+        body{
+            padding-top: 60px;
+            padding-bottom: 40px;
+        }
+        .fixed-header, .fixed-footer{
+            width: 100%;
+            position: fixed;
+            background: #333;
+            padding: 10px 0;
+            color: #fff;
+        }
+        .fixed-header{
+            top: 0;
+        }
+        .fixed-footer{
+            bottom: 0;
+        }
+        .container{
+            width: 80%;
+            margin: 0 auto; /* Center the DIV horizontally */
+        }
+        nav a{
+            color: #fff;
+            text-decoration: none;
+            padding: 7px 25px;
+            display: inline-block;
+        }
+    </style>
+
+<!---   JAVA Body area  --->
+<body>
+    <div class="fixed-header">
+        <div class>
+            <nav>
+                <a href="/"><span style="font-size: 40px;">Echo Water Air Cleaner DashBoard</span></a>
+            </nav>
+        </div>
+    </div>
+
+    <div>
+        <div class="col-lg-3" style="float: left; max-width:400px; max-height: 650px; overflow: scroll; overflow-x:hidden;">
+            <!---
+            <h1> Indoor Environment : {{totalCount}} </h>
+            -->
+            <h2> Indoor Environment</h2>
+            <div>
+                <canvas id="myChart" style="width: 400px; height: 250px;"></canvas>
+            </div>
+            <!---
+            <h1> Weather Information : {{totalCount1}} </h>
+            -->
+            <h2> Weather Information </h2>
+            <div>
+                <canvas id="myChart1" style="width: 400px; height: 250px;"></canvas>
+            </div>
+        </div>
+        <div class="col-lg-3" style="float: left; max-width:800px; max-height: 650px; overflow: scroll; overflow-x:hidden;">
+            <!---
+            <h1> Total Device2 : {{totalCount2}} </h>
+            -->
+            <h1> Weekly Report </h1>
+            <div>
+                <canvas id="myChart2" style="width: 800px; height: 550px;"></canvas>
+            </div>
+        </div>
+        <!---
+        <div class="col-lg-1"></div>
+        -->
+    </div>
+
+</body>
+
+<!---   JAVA Script area  --->
+
+<script>
+    class Chart_X extends Chart.DatasetController, Chart.LineController, Chart.Animation{
+        draw(){
+            super.draw(arguments)
+
+            const meta = this.getMeta();
+
+        }
+    }
+
+    Chart.register(Chart_X);
+
+    const dataObj = {
+
+        // type: 'line',
+        // data: {
+        //     labels: [1,2,3,4,5,6],
+        //     datasets: [{
+        //         label: 'Real time data',
+        //         data: [12, 19, 3, 5, 2, 3],
+        //     }]
+        // },
+        // options: {
+        //     scales: {
+        //         yAxes: [{
+        //             ticks: {
+        //                 beginAtZero: true
+        //             }
+        //         }]
+        //     }
+        // }
+
+        type: 'bar',
+        data: {
+            labels: {{countryNames|safe}},
+            datasets: [{
+                label: 'temp',
+                backgroundColor: ['#3e95cd', '#8e5ea2', '#3cba9f', '#e8c3b9', '#c45850'],
+                borderColor: ['#3e95cd', '#8e5ea2', '#3cba9f', '#e8c3b9', '#c45850'],
+                data: {{Bar_Plot_Values|safe}},
+                //data: [3, 3, 3, 3, 3],
+                fill: false
+            }]
+        },
+        options: {
+            scales: {
+                y: {
+                    ticks: {beginAtZero: true}
+                }
+            },
+        },
+        Animation: {
+            duration: 1,
+            onComplete: function (){
+                const chartInstance = this.chart, ctx = ctx0;
+                ctx.font = Chart.helpers.fontString(Chart.defaults.font.size,
+                                                    Chart.defaults.font.style,
+                                                    Chart.defaults.font.family);
+                ctx.fillStyle = "purple";
+                ctx.textAlign = "center";
+                ctx.textBaseline = "bottom";
+
+                this.data.datasets.forEach(function (dataset, i) {
+                    const meta = chartInstance.controller.getDatasetMeta(i);
+                    meta.data.forEach(function (bar, index) {
+                        const data = dataset.data[index];
+                        ctx.fillText(data, bar._model.x, bar._model.y - 5);
+                    })
+                })
+            }
+        }
+    }
+
+const ctx0 = document.getElementById('myChart').getContext('2d');
+window.myLine = new Chart(ctx0, dataObj);
+</script>
+
+<script>
+const chart1 = {
+     type: 'bar',
+     data: {
+         labels: {{countryNames1|safe}},
+         datasets: [{
+             label: 'total',
+             backgroundColor: ['#3e95cd', '#8e5ea2', '#3cba9f', '#e8c3b9', '#c45850'],
+             borderColor: ['#3e95cd', '#8e5ea2', '#3cba9f', '#e8c3b9', '#c45850'],
+             data: {{Bar_Plot_Values1|safe}},
+             fill: false
+         }]
+     },
+     options: {
+         scales: {
+                y: {
+                    ticks: {beginAtZero: true}
+                }
+         },
+         animation: {
+            duration: 1,
+            onComplete: function (){
+                const chartInstance = this.chart, ctx = ctx1;
+                ctx.font = Chart.helpers.fontString(Chart.defaults.font.size,
+                                                    Chart.defaults.font.style,
+                                                    Chart.defaults.font.family);
+                ctx.fillStyle = "purple";
+                ctx.textAlign = "center";
+                ctx.textBaseline = "bottom";
+
+                this.data.datasets.forEach(function (dataset, i) {
+                    const meta = chartInstance.controller.getDatasetMeta(i);
+                    meta.data.forEach(function (bar, index) {
+                        const data = dataset.data[index];
+                        ctx.fillText(data, bar._model.x, bar._model.y - 5);
+                    })
+                })
+            }
+        }
+     }
+}
+const ctx1 = document.getElementById('myChart1').getContext('2d');
+window.myLine1 = new Chart(ctx1, chart1);
+</script>
+
+<script>
+const chart2 = {
+     type: 'line',
+     data: {
+         labels: {{countryNames2|safe}},
+         datasets: [
+             {
+             label: 'Humidity',
+             backgroundColor: '#3e95cd',
+             borderColor: '#3e95cd',
+             data: {{Bar_Plot_Values2_1|safe}},
+             fill: false
+             },
+             {
+             label: 'PM2.5',
+             backgroundColor: '#8e5ea2',
+             borderColor: '#8e5ea2',
+             data: {{Bar_Plot_Values2_2|safe}},
+             fill: false
+             },
+             {
+             label: 'PM10',
+             backgroundColor: '#3cba9f',
+             borderColor: '#3cba9f',
+             data: {{Bar_Plot_Values2_3|safe}},
+             fill: false
+             },
+             {
+             label: 'Temp',
+             backgroundColor: '#e8c3b9',
+             borderColor: '#e8c3b9',
+             data: {{Bar_Plot_Values2_4|safe}},
+             fill: false
+             },
+             {
+             label: 'TVOC',
+             backgroundColor: '#c45850',
+             borderColor: '#c45850',
+             data: {{Bar_Plot_Values2_5|safe}},
+             fill: false
+             }
+         ]
+     },
+     options: {
+         scales: {
+                y: {
+                    ticks: {beginAtZero: true}
+                }
+         },
+         animation: {
+            duration: 1,
+            onComplete: function (){
+                const chartInstance = this.chart, ctx = ctx2;
+                ctx.font = Chart.helpers.fontString(Chart.defaults.font.size,
+                                                    Chart.defaults.font.style,
+                                                    Chart.defaults.font.family);
+                ctx.fillStyle = "purple";
+                ctx.textAlign = "center";
+                ctx.textBaseline = "bottom";
+
+                this.data.datasets.forEach(function (dataset, i) {
+                    const meta = chartInstance.controller.getDatasetMeta(i);
+                    meta.data.forEach(function (bar, index) {
+                        const data = dataset.data[index];
+                        ctx.fillText(data, bar._model.x, bar._model.y - 5);
+                    })
+                })
+            }
+        }
+     }
+}
+const ctx2 = document.getElementById('myChart2').getContext('2d');
+window.myLine2 = new Chart(ctx2, chart2);
+</script>
+</html>

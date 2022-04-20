@@ -8,6 +8,7 @@ from django.contrib.auth.models import Group
 from .models import UserProfile
 from apps.factory.models import CompanyProfile, Machine, Sensor
 from .serializer import RequestSerializer, RequestFactorySerializer
+from django import forms
 
 
 # class RequestSerializer(serializers.ModelSerializer):
@@ -52,10 +53,21 @@ class SensorInline(admin.StackedInline):
     model = Sensor
 
 
+class CompanyChoiceField(forms.ModelChoiceField):
+    def label_from_instance(self, obj):
+        print(f'object : {obj}')
+        return f"Company: {obj.company_name}"
+
+
 # Register your models here.
 # 맨 처음 화면, 등록된 모델마다 메뉴가 생김
 @admin.register(UserProfile)
 class UserAdmin(admin.ModelAdmin):
+    def formfield_for_foreignkey(self, db_field, request, **kwargs):
+        if db_field.name == 'company_fk':
+            return CompanyChoiceField(queryset=CompanyProfile.objects.all())
+        return super().formfield_for_foreignkey(db_field, request, **kwargs)
+
     # Users를 클릭하면 보이는 초기 화면
     # form = UserCreationForm
     list_display = ('username', 'email', 'company_name_list', 'is_admin')
@@ -107,7 +119,7 @@ class UserAdmin(admin.ModelAdmin):
 class CompanyAdmin(admin.ModelAdmin):
     # pass
     list_display = ('company_name', 'user_name', 'user_email')
-    inlines = (UserInline, MachineInline, )
+    inlines = (UserInline, MachineInline,)
 
     # obj = CompanyProfile
     def user_name(self, obj):

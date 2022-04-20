@@ -13,7 +13,7 @@
 <!--<script type="text/javascript" src="http://www.jlion.com/js/jliontherm2.js"></script>-->
 <!--<script src="../gauge/js/jQuery-plugin-progressbar.js"></script>-->
 <!--<link rel="stylesheet" href="../gauge/css/jQuery-plugin-progressbar.css">-->
-
+{{ context | json_script:'jsonData' }}
 
 <style>
     .gauge {
@@ -34,7 +34,6 @@
       border-top-right-radius: 100% 200%;
       overflow: hidden;
     }
-
     .gauge_fill {
       position: absolute;
       top: 100%;
@@ -46,7 +45,6 @@
       transform: rotate(0.25turn);
       transition: transform 0.2s ease-out;
     }
-
     .gauge_cover {
       width: 75%;
       height: 150%;
@@ -297,7 +295,7 @@
                                         <p>설비 1</p>
                                         <p>센서를 확인해 주세요</p>
                                     </div>
-                                    <div style="border-radius: 10px;float:left; border: 1px solid black; text-align: center; border-radius: 10px"
+                                    <div style="border-radius: 10px;float:left; border: 1px solid black; text-align: center;"
                                          class="m-4 col-5">
                   <span style="font-size:100px" class="material-icons">
                       priority_high
@@ -440,10 +438,10 @@
                                 <div style="border-top: 1px solid darkgray; border-bottom: 1px solid darkgray; text-align: left;" class="d-inline-flex p-3 text-white">
                                     <p>센서 1</p>
                                          <div class="col-2">
-                                             <div class="gauge">
-                                            <div class="gauge_body">
-                                                <div class="gauge_fill"></div>
-                                                <div class="gauge_cover"></div>
+                                             <div class="gauge" id="gauge1">
+                                            <div class="gauge_body" id="gauge_body1">
+                                                <div class="gauge_fill" id="gauge_fill1"></div>
+                                                <div class="gauge_cover" id="gauge_cover1"></div>
                                             </div>
                                         </div>
                                         </div>
@@ -460,18 +458,24 @@
                                 <div style="border-top: 1px solid darkgray; border-bottom: 1px solid darkgray; text-align: left;" class="d-inline-flex p-3 text-white">
                                     <p>센서 2</p>
                                         <div class="col-2">
-                                        <div class="gauge">
-                                            <div class="gauge_body">
-                                                <div class="gauge_fill"></div>
-                                                <div class="gauge_cover"></div>
+                                        <div class="gauge" id="gauge2">
+                                            <div class="gauge_body" id="gauge_body2">>
+                                                <div class="gauge_fill" id="gauge_fill2"></div>
+                                                <div class="gauge_cover" id="gauge_cover2"></div>
                                             </div>
                                         </div>
                                         </div>
                                     <div class="mt-4 col-10">
                                         <div class="progress" style="margin-bottom:10px">
-                                            <div class="progress-bar bg-danger" role="progressbar" aria-valuenow="70"
+{#                                            <script>#}
+{#                                               const temp = {{ context.BarPlot_z_board_temperatures | safe }}#}
+{#                                                    {% for i in context.BarPlot_z_board_temperatures %}#}
+{##}
+{#                                                    {% endfor %}#}
+{#                                            </script>#}
+                                            <div class="progress-bar bg-danger" role="progressbar" aria-valuenow=""
                                                  aria-valuemin="0" aria-valuemax="100" style="width:80% ">
-                                                80% (danger)
+                                                {{ context.BarPlot_z_board_temperatures | safe }} %
                                             </div>
                                         </div>
                                     </div>
@@ -1302,40 +1306,72 @@
 <div>
     <div>
     <script>
-        const gaugeElement = document.querySelector(".gauge");
-        const gauge__fill = document.querySelector(".gauge_fill");
+        const gaugeElement1 = document.querySelector("#gauge1");
+        const gaugeElement2 = document.querySelector("#gauge2");
 
+        const gauge__fill1 = document.querySelector("#gauge_fill1");
+        const gauge__fill2 = document.querySelector("#gauge_fill2");
+        const temp = {{ context.BarPlot_Z_Board_Temperatures | safe }};
+        console.log(temp)
+        let i = 0;
         //  setGaugeValue 함수 매개변수에 value 에 게이지 값을 넣어주면 됩니다.
 
-        function setGaugeValue(gauge, value) {
+        function setGaugeValue(gauge1, gauge2, value, temper) {
 
           if (value < 0 || value > 1) {
             return;
           }
-          gauge.querySelector(".gauge_fill").style.transform = `rotate(${
+          gauge1.querySelector("#gauge_fill1").style.transform = `rotate(${
             value / 2 //게이지가 채워 지는 부분 반원을 그리기 위해 2를 나눠줌
           }turn)`;
-          gauge.querySelector(".gauge_cover").textContent = `${Math.round(
+          gauge1.querySelector("#gauge_cover1").textContent = `${Math.round(
             value * 100
           )}%`;
+          gauge2.querySelector("#gauge_fill2").style.transform = `rotate(${
+              temper / 200
+          }turn)`;
+          gauge2.querySelector("#gauge_cover2").textContent = `${Math.round(
+            temper
+          )}%`;
+
+          i++;
         }
+
         document.removeEventListener("setGaugeValue", setGaugeValue, {
               passive: false
         });
         //   Interval 함수 사용 타이머 역할
         //   value 는 실수 단위
 
-      setInterval(() => {
+        setInterval(() => {
             const ran = Math.random();
             console.log(ran)
+
             if (ran < 0.5) {
-              gauge__fill.style.background = "#009578";
+              gauge__fill1.style.background = "#009578";
             } else if (ran > 0.5 && ran < 0.8) {
-              gauge__fill.style.background = "#FF9900";
+              gauge__fill1.style.background = "#958600";
             } else {
-              gauge__fill.style.background = "#FF0000";
+              gauge__fill1.style.background = "#FF0000";
             }
-            setGaugeValue(gaugeElement, ran);
+
+            if (i === temp.length){
+              i = 0;
+            }
+            let temper = temp[i] * ran * 2
+            if (temper < 20){
+                console.log(temper)
+                gauge__fill2.style.background = "#009578";
+            }else if (30 < temper < 40){
+                console.log(temper)
+                gauge__fill2.style.background = "#958600";
+            }else if (40 < temper < 50){
+                console.log(temper)
+                gauge__fill2.style.background = "#FF0000";
+            }
+
+            setGaugeValue(gaugeElement1, gaugeElement2, ran, temper);
+
         }, 3 * 1000);
 
     </script>

@@ -558,7 +558,6 @@ def result_json(sensor_tag):
     end_time_stamp_str = "2022-03-25"
     start_time_stamp_str = "2022-03-24"
 
-
     print(f'start time = {start_time_stamp_str}, end time = {end_time_stamp_str}')
 
     # endtime = "2022-04-12"
@@ -726,7 +725,7 @@ def result_json(sensor_tag):
     #     axis=axis_xyz
     # )
 
-    print(f'x : {len(epoch_dates_x)}, y : {len(epoch_dates_y)}, z : {len(epoch_dates_z)}')
+    print(f'x length : {len(epoch_dates_x)}, y length : {len(epoch_dates_y)}, z length : {len(epoch_dates_z)}')
 
     epoch_dates_length = 0
     if (len(epoch_dates_x) > len(epoch_dates_y)) and (len(epoch_dates_x) > len(epoch_dates_z)):
@@ -857,6 +856,9 @@ def result_json(sensor_tag):
     #         print(json_data['contents']['ZRms'])
     #     print("=====================================================================================")
 
+    base_time = time.mktime(datetime.datetime.strptime(start_time_stamp_str, "%Y-%m-%d").timetuple())
+    print(f"start base time : {base_time}")
+
     # inner repeat
     epoch_dates_x_timeline = []
     json_x_datas = []
@@ -958,7 +960,7 @@ def result_json(sensor_tag):
     return [x_rms_contents, y_rms_contents, z_rms_contents], [x_kurt_contents, y_kurt_contents, z_kurt_contents], \
            [x_board_temperatures, y_board_temperatures, z_board_temperatures], \
            [epoch_dates_x_timeline, epoch_dates_y_timeline, epoch_dates_z_timeline], \
-           [x_flag, y_flag, z_flag]
+           [x_flag, y_flag, z_flag], base_time
 
     # data2 = [{"serviceId": "76", "deviceId": "reshenie1", "timestamp": dateT,
     #                      "contents": {"XRms": None, "gKurtX": None,
@@ -996,7 +998,9 @@ def show_graph(request, sensor_tag):
     x, y, z, xyz = 0, 1, 2, 3
 
     # RMS (rms acceleration; rms 가속도 : 일정 시간 동안의 가속도 제곱의 평균의 제곱근
-    my_rms, my_kurtosis, my_board_temperatures, my_time, flags = result_json(sensor_tag)
+    my_rms, my_kurtosis, my_board_temperatures, my_time, flags, start_time = result_json(sensor_tag)
+    start_time_str = datetime.datetime.fromtimestamp(start_time).strftime("%Y년 %m월 %d일 %H시 %M분 %S초")
+    print(f'my_rms[x] length : {len(my_rms[x])}, my_time[x] length : {len(my_time[x])}')
 
     # you can change graph parameters
     acceleration_x = []
@@ -1034,45 +1038,47 @@ def show_graph(request, sensor_tag):
 
     if flags[x] == 1 and flags[y] == flags[z]:
         date_list_x = []
-        base_time = my_time[x][0]
-        for i in range(len(my_time[x])):
-            date_list_x.append(my_time[x][i] - base_time)
 
+        for i in range(len(my_time[x])):
+            date_list_x.append(my_time[x][i] - start_time)
+
+        print(f'date_list_x: {date_list_x}')
         bar_plot_x_rms_values = my_rms[x]
         bar_plot_x_kurtosis_values = my_kurtosis[x]
         bar_plot_x_board_temperatures = my_board_temperatures[x]
         bar_plot_x_time = date_list_x
 
         x_step_size = 0
-        for i in range(1, len(bar_plot_x_time)):
+        for i in range(len(my_time[x])):
             acceleration_x.append(x_step_size)
             background_color.append('#3e95cd')
             border_color.append('#3e95cd')
             x_step_size += 0.5
 
-    elif flags[y] == 1 and flags[x] == flags[z]:
+    if flags[y] == 1 and flags[x] == flags[z]:
         date_list_y = []
-        base_time = my_time[y][0]
-        for i in range(len(my_time[y])):
-            date_list_y.append(my_time[y][i] - base_time)
 
+        for i in range(len(my_time[y])):
+            date_list_y.append(my_time[y][i] - start_time)
+
+        print(f'date_list_y: {date_list_y}')
         bar_plot_y_rms_values = my_rms[y]
         bar_plot_y_kurtosis_values = my_kurtosis[y]
         bar_plot_y_board_temperatures = my_board_temperatures[y]
         bar_plot_y_time = date_list_y
 
         y_step_size = 0
-        for i in range(1, len(bar_plot_y_time)):
+        for i in range(len(my_time[y])):
             acceleration_y.append(y_step_size)
             background_color.append('#3e95cd')
             border_color.append('#3e95cd')
             y_step_size += 0.5
 
-    elif flags[z] == 1 and flags[x] == flags[y]:
-        date_list_z = [0, ]
-        base_time = my_time[z][0]
-        for i in range(1, len(my_time[z])):
-            date_list_z.append(my_time[z][i] - base_time)
+    if flags[z] == 1 and flags[x] == flags[y]:
+        date_list_z = []
+
+        for i in range(len(my_time[z])):
+            date_list_z.append(my_time[z][i] - start_time)
 
         print(f'date_list_z: {date_list_z}')
         bar_plot_z_rms_values = my_rms[z]
@@ -1087,7 +1093,7 @@ def show_graph(request, sensor_tag):
             border_color.append('#3e95cd')
             z_step_size += 0.5
 
-    elif flags[x] == flags[y] == flags[z] == 1:
+    if flags[x] == flags[y] == flags[z] == 1:
         date_list = []
 
         plot_x_pairs = dict(zip(my_time[x], my_rms[x]))
@@ -1100,16 +1106,17 @@ def show_graph(request, sensor_tag):
 
         # 최종 결과 기준 key 값으로 정렬
         results = dict(sorted(plot_z_pairs.items()))
+        print(f"dictionary result: {results}")
         time_list = list(results.keys())
-        base_time = time_list[0]
-        
+
         # rms 값은 value 배열에 저장
         value_list = list(results.values())
-        
+
         # 시간을 빼주고 다른 배열에 저장
-        for i in range(1, len(results)):
-            date_list.append(time_list[i] - base_time)    
-        
+        for i in range(len(results)):
+            date_list.append(time_list[i] - start_time)
+        print(f"xyz result time : {date_list}")
+
         bar_plot_xyz_rms_values = value_list
         bar_plot_xyz_kurtosis_values = my_kurtosis[x] + my_kurtosis[y] + my_kurtosis[z]
         bar_plot_xyz_board_temperatures = my_board_temperatures[x] + my_board_temperatures[y] + my_board_temperatures[z]
@@ -1123,6 +1130,7 @@ def show_graph(request, sensor_tag):
             xyz_step_size += 0.5
 
     context = {
+        'Measurement_Start_Time': start_time_str,
         'Acceleration_X': acceleration_x,
         'Acceleration_Y': acceleration_y,
         'Acceleration_Z': acceleration_z,
@@ -1160,9 +1168,136 @@ def show_graph(request, sensor_tag):
     return render(request, 'home/show-graph.html', {'context': context})
 
 
-def other_data(request):
+def other_data(request, sensor_tag):
+    x, y, z, xyz = 0, 1, 2, 3
 
-    return render(request, 'home/show-graph.html', {'context': context})
+    # RMS (rms acceleration; rms 가속도 : 일정 시간 동안의 가속도 제곱의 평균의 제곱근
+    my_rms, my_kurtosis, my_board_temperatures, my_time, flags, start_time = result_json(sensor_tag)
+
+    # you can change graph parameters
+    acceleration_x = []
+    acceleration_y = []
+    acceleration_z = []
+    acceleration_xyz = []
+
+    bar_plot_x = []
+    bar_plot_y = []
+    bar_plot_z = []
+    bar_plot_xyz = []
+
+    bar_plot_x_board_temperatures = []
+    bar_plot_y_board_temperatures = []
+    bar_plot_z_board_temperatures = []
+    bar_plot_xyz_board_temperatures = []
+
+    bar_plot_x_time = []
+    bar_plot_y_time = []
+    bar_plot_z_time = []
+    bar_plot_xyz_time = []
+
+    background_color = []
+    border_color = []
+
+    if flags[x] == 1 and flags[y] == flags[z]:
+        date_list_x = []
+        for i in range(len(my_time[x])):
+            date_list_x.append(my_time[x][i] - start_time)
+
+        bar_plot_x_board_temperatures = my_board_temperatures[x]
+        bar_plot_x_time = date_list_x
+
+        x_step_size = 0
+        for i in range(len(my_time[x])):
+            acceleration_x.append(x_step_size)
+            background_color.append('#3e95cd')
+            border_color.append('#3e95cd')
+            x_step_size += 0.5
+
+    if flags[y] == 1 and flags[x] == flags[z]:
+        date_list_y = []
+        for i in range(len(my_time[y])):
+            date_list_y.append(my_time[y][i] - start_time)
+
+        bar_plot_y_board_temperatures = my_board_temperatures[y]
+        bar_plot_y_time = date_list_y
+
+        y_step_size = 0
+        for i in range(len(my_time[y])):
+            acceleration_y.append(y_step_size)
+            background_color.append('#3e95cd')
+            border_color.append('#3e95cd')
+            y_step_size += 0.5
+
+    if flags[z] == 1 and flags[x] == flags[y]:
+        date_list_z = []
+        for i in range(len(my_time[z])):
+            date_list_z.append(my_time[z][i] - start_time)
+
+        print(f'date_list_z: {date_list_z}')
+        bar_plot_z_board_temperatures = my_board_temperatures[z]
+        bar_plot_z_time = date_list_z
+
+        z_step_size = 0
+        for i in range(len(my_board_temperatures[z])):
+            acceleration_z.append(z_step_size)
+            background_color.append('#3e95cd')
+            border_color.append('#3e95cd')
+            z_step_size += 0.5
+
+    if flags[x] == flags[y] == flags[z] == 1:
+        date_list = []
+
+        plot_x_pairs = dict(zip(my_time[x], my_board_temperatures[x]))
+        plot_y_pairs = dict(zip(my_time[y], my_board_temperatures[y]))
+        plot_z_pairs = dict(zip(my_time[z], my_board_temperatures[z]))
+
+        # dictionary 형태로 update
+        plot_y_pairs.update(plot_x_pairs)
+        plot_z_pairs.update(plot_y_pairs)
+
+        # 최종 결과 기준 key 값으로 정렬
+        results = dict(sorted(plot_z_pairs.items()))
+        time_list = list(results.keys())
+        value_list = list(results.values())
+
+        # 시간을 빼주고 다른 배열에 저장
+        for i in range(len(results)):
+            date_list.append(time_list[i] - start_time)
+
+        bar_plot_xyz_board_temperatures = value_list
+        print(f'result : {bar_plot_xyz_board_temperatures}')
+
+        bar_plot_xyz_time = date_list
+
+        xyz_step_size = 0.5
+        for i in range(len(results)):
+            acceleration_xyz.append(xyz_step_size)
+            background_color.append('#3e95cd')
+            border_color.append('#3e95cd')
+            xyz_step_size += 0.5
+
+    context = {
+        'Acceleration_X': acceleration_x,
+        'Acceleration_Y': acceleration_y,
+        'Acceleration_Z': acceleration_z,
+        'Acceleration_XYZ': acceleration_xyz,
+        'BarPlot_X': bar_plot_x,
+        'BarPlot_Y': bar_plot_y,
+        'BarPlot_Z': bar_plot_z,
+        'BarPlot_XYZ': bar_plot_xyz,
+        'BarPlot_X_Board_Temperatures': bar_plot_x_board_temperatures,
+        'BarPlot_Y_Board_Temperatures': bar_plot_y_board_temperatures,
+        'BarPlot_Z_Board_Temperatures': bar_plot_z_board_temperatures,
+        'BarPlot_XYZ_Board_Temperatures': bar_plot_xyz_board_temperatures,
+        'BarPlot_X_time': bar_plot_x_time,
+        'BarPlot_Y_time': bar_plot_y_time,
+        'BarPlot_Z_time': bar_plot_z_time,
+        'BarPlot_XYZ_time': bar_plot_xyz_time,
+        'backgroundColor': background_color,
+        'borderColor': border_color,
+    }
+
+    return render(request, 'home/other-data.html', {'context': context})
 
 
 @login_required(login_url="/login/")
@@ -1189,3 +1324,33 @@ def pages(request):
     except requests.exceptions.HTTPError:
         html_template = loader.get_template('home/page-500.html')
         return HttpResponse(html_template.render(context, request))
+
+
+def test(request):
+    total_count = 100
+    total_count1 = 101
+    total_count2 = 102
+
+    # you can change graph parameters
+    country_names = ['temp', 'humid', 'PM2.5', 'PM10', 'TVOC']
+    country_names1 = ['total', 'humid', 'weather', 'PM2.5', 'PM10']
+    country_names2 = ['11', '12', '13', '14', '15', '16', '17']
+
+    bar_plot_values = []
+
+    bar_plot_values1 = []
+
+    bar_plot_values2_1 = []
+    bar_plot_values2_2 = []
+    bar_plot_values2_3 = []
+    bar_plot_values2_4 = []
+    bar_plot_values2_5 = []
+
+    context = {'totalCount': total_count, 'countryNames': country_names, 'Bar_Plot_Values': bar_plot_values,
+               'totalCount1': total_count1, 'countryNames1': country_names1, 'Bar_Plot_Values1': bar_plot_values1,
+               'totalCount2': total_count2, 'countryNames2': country_names2,
+               'Bar_Plot_Values2_1': bar_plot_values2_1, 'Bar_Plot_Values2_2': bar_plot_values2_2,
+               'Bar_Plot_Values2_3': bar_plot_values2_3, 'Bar_Plot_Values2_4': bar_plot_values2_4,
+               'Bar_Plot_Values2_5': bar_plot_values2_5}
+
+    return render(request, 'tester/index.html', context)
