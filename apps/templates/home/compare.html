@@ -1,0 +1,258 @@
+{% extends "layouts/base.html" %} {% block title %} Dashboard {% endblock %}
+
+<!-- Specific CSS goes HERE -->
+{% block stylesheets %}{% endblock stylesheets %}
+{% block content %}
+    {% load repeat %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>{{ context | json_script:'jsonData' }}
+   <script>
+        const compareData = JSON.parse(document.getElementById("jsonData").textContent)
+        console.log(compareData.sensor_tag)
+    </script>
+
+
+{#    403 forbidden 방지#}
+{#    {% csrf_token %}#}
+<div class="pcoded-content">
+  <div class="pcoded-inner-content">
+    <!-- [ breadcrumb ] start -->
+
+    <!-- [ breadcrumb ] end -->
+    <div class="main-body">
+      <div class="page-wrapper">
+        <!-- [ Main Content ] start -->
+        <div class="row">
+          <!--[ daily sales section ] start-->
+          <div class="col-md-6 col-xl-4">
+            <div class="card daily-sales">
+              <div class="card-header">
+                <h5>Factory</h5>
+              </div>
+              <div class="card-block">
+
+                <div class="row d-flex align-items-center">
+                  <div class="col-9">
+                    <h3 class="f-w-300 d-flex align-items-center m-b-0">
+                      {{ context.gql_result }}<br>
+                      {{ context.opcua_result }}<br>
+                      {{ context.current_running_time }}<br>
+                    </h3>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="col-md-6 col-xl-7">
+            <div class="card Monthly-sales">
+                <div class="card-block">
+                    <div class="row d-flex align-items-center">
+                    </div>
+                    <h2></h2>
+                </div>
+            </div>
+          </div>
+          <!--[ daily sales section ] end-->
+          <!--[ Monthly  sales section ] starts-->
+          <div class="col-md-6 col-xl-7">
+            <div class="card Monthly-sales">
+              <div class="card-header">
+                <h5>Machines</h5>
+              </div>
+              <div class="card-block">
+                <div class="row d-flex align-items-center">
+                </div>
+                <h2>여기에 설비 정보가 올라갈예정임 </h2>
+                <div id="Context">This is original</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="col-md-6 col-xl-7">
+            <div class="card card-event">
+              <div class="card-header">
+                <h5>Sensor</h5>
+              </div>
+              <div class="card-block">
+                <div class="row align-items-center justify-content-center">
+                  <div class="col-auto"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="col-xl-10 col-md-6">
+            <div class="card Recent-Users">
+              <div class="card-header">
+                <h5>Meta</h5>
+              </div>
+              <div class="card-block px-0 py-3">
+                <h1>여기에 미터기 배치될 예정입니다.</h1>
+              </div>
+            </div>
+          </div>
+            <div class="result_box">
+                <div class="col-lg-3" style="float: inside; max-width:400px; max-height: 1000px; overflow: scroll; overflow-x:hidden;">
+                    <h2> 속도 비교 그래프 </h2>
+                    <div>
+                        <canvas id="AxisGraph" style="width: 400px; height: 250px;"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+    <script>
+        const chart_t = {
+
+            type: 'line',
+            data: {
+                // x axis label; x축
+                labels: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
+                datasets: [
+                    {
+                        label: 'GraphQL running time',
+                        backgroundColor: '#3e95cd',
+                        borderColor: '#3e95cd',
+
+                        // x 축에 대응되는 값; y축
+                        data: {{ context.gql_result | safe }},
+                        //data: [3, 3, 3, 3, 3],
+                        fill: false
+                    },
+                    {
+                        label: 'OPC-UA running time',
+                        backgroundColor: '#cd3e5b',
+                        borderColor: '#cd3e5b',
+
+                        // x 축에 대응되는 값; y축
+                        data: {{ context.opcua_result | safe }},
+                        //data: [3, 3, 3, 3, 3],
+                        fill: false
+                    },
+                    {
+                        label: 'current running time (async thread)',
+                        backgroundColor: '#3ecd4a',
+                        borderColor: '#3ecd4a',
+
+                        // x 축에 대응되는 값; y축
+                        data: {{ context.current_running_time | safe }},
+                        //data: [3, 3, 3, 3, 3],
+                        fill: false
+                    },
+                ]
+            },
+            options: {
+                scales: {
+                    y: {
+                        ticks: {
+                            beginAtZero: false,
+                            //stepSize: 0.05
+                        },
+                        title: {
+                            display: true,
+                            labelString: 'running time [s]'
+                        }
+                    },
+                    x: {
+                        ticks: {
+                            beginAtZero: false,
+                            //stepSize: 0.5
+                        },
+                        title: {
+                            display: true,
+                            labelString: 'execute number [n]'
+                        }
+                    }
+                },
+                animation: {
+                    duration: 1,
+                    onComplete: function (){
+                        const chartInstance = this.chart, ctx = ctx_t;
+                        ctx.font = Chart.helpers.fontString(Chart.defaults.font.size,
+                                                            Chart.defaults.font.style,
+                                                            Chart.defaults.font.family);
+                        ctx.fillStyle = "purple";
+                        ctx.textAlign = "center";
+                        ctx.textBaseline = "bottom";
+
+                        {#this.data.datasets.forEach(function (dataset, i) {#}
+                        {#    const meta = chartInstance.controller.getDatasetMeta(i);#}
+                        {#    meta.data.forEach(function (bar, index) {#}
+                        {#        const data = dataset.data[index];#}
+                        {#        ctx.fillText(data, bar._model.x, bar._model.y - 5);#}
+                        {#    })#}
+                        //})
+                    }
+                }
+            }
+        }
+        const ctx_t = document.getElementById('AxisGraph').getContext('2d');
+        window.myLine_t = new Chart(ctx_t, chart_t);
+    </script>
+    <script>
+        {#let jsonParser = 0#}
+        {#function jsonParsing(){#}
+        {#    jsonParser = {{ context.sensor_tag | protocol_repeat | safe }}#}
+        {#    console.log(jsonParser)#}
+        {#    return jsonParser#}
+        {# }#}
+        {#setInterval(() => jsonParsing(), 5000)#}
+        let flag = 0
+
+        function ajaxTest(){
+
+            $.ajax({
+                type: "POST",
+                // 403 forbidden 방지
+                headers: { 'X-CSRFToken': '{{csrf_token}}' },
+                url: "repeater/",
+                data: {
+                    'sensor_tag': compareData.sensor_tag
+                },
+                error: function() {
+                  alert('통신실패!!');
+                },
+                success: function(data) {
+                    const dataObject_gql = chart_t['data']['datasets'][0]['data']
+                    const dataObject_ua = chart_t['data']['datasets'][1]['data']
+                    const dataObject_total = chart_t['data']['datasets'][2]['data']
+
+                    console.log(data)
+                    console.log(data['info'].gql_result)
+                    console.log(data['info'].opcua_result)
+                    console.log(data['info'].current_running_time)
+
+                    if (flag === dataObject_gql.length){
+                        dataObject_gql.shift()
+                        dataObject_ua.shift()
+                        dataObject_total.shift()
+
+                        dataObject_gql.push(data['info'].gql_result)
+                        dataObject_ua.push(data['info'].opcua_result)
+                        dataObject_total.push(data['info'].current_running_time)
+
+                    }else{
+                        dataObject_gql.push(data['info'].gql_result)
+                        dataObject_ua.push(data['info'].opcua_result)
+                        dataObject_total.push(data['info'].current_running_time)
+
+                        flag++
+
+                        console.log(flag)
+                    }
+
+                    window.myLine_t.update()
+                  {#$('#Context').html(data);#}
+                }
+            });
+        }
+        playAlert = setInterval(function() {
+            ajaxTest();
+        }, 120000);
+
+    </script>
+{% endblock content %}
+
+<!-- Specific Page JS goes HERE  -->
+{% block javascripts %}{% endblock javascripts %}

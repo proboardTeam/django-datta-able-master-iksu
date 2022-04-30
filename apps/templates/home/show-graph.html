@@ -8,7 +8,6 @@
         let Y_flag = 0;
         let Z_flag = 0;
         let XYZ_flag = 0;
-        let TVOC_flag = 0;
         let i = 0;
 
         {#let socket = new WebSocket('ws://127.0.0.1:8000/ws/polData/group_name/')#}
@@ -118,108 +117,106 @@
         {#    alert("Connection Closed.")#}
         // }
 
-        const jsonData = JSON.parse(document.getElementById("jsonData").textContent);
-        console.log(jsonData)
-        console.log("X value" + jsonData.BarPlot_X_RMS_Values)
-        console.log("X time" + jsonData.BarPlot_X_time)
-        console.log("Y value" + jsonData.BarPlot_Y_RMS_Values)
-        console.log("Y time" + jsonData.BarPlot_Y_time)
-        console.log("Z value" + jsonData.BarPlot_Z_RMS_Values)
-        console.log("Z time" + jsonData.BarPlot_Z_time)
+        {#const jsonData = JSON.parse(document.getElementById("jsonData").textContent);#}
+        {#console.log(jsonData)#}
+        {#console.log("X value " + jsonData.BarPlot_X_RMS_Values)#}
+        {#console.log("X time " + jsonData.BarPlot_X_Time)#}
+        {#console.log("Y value " + jsonData.BarPlot_Y_RMS_Values)#}
+        {#console.log("Y time " + jsonData.BarPlot_Y_Time)#}
+        {#console.log("Z value " + jsonData.BarPlot_Z_RMS_Values)#}
+        {#console.log("Z time " + jsonData.BarPlot_Z_Time)#}
 
-        function dataAsync(data){
-            if (data) return data
-            else throw new Error('None received data.')
-        }
+        {#function dataAsync(data){#}
+        {#    if (data) return data#}
+        {#    else throw new Error('None received data.')#}
+        {# }#}
 
         // asynchronous control
-         function dataRenderX(chartData){
-
-            {#let X_rms = []#}
-            {#X_rms = {{ BarPlot_X_RMS_Values | safe }}#}
+         function dataRenderX(XRmsData, XTimeData){
 
             // chart_x['data']['datasets'][0]['data'] = [, chartData.humid, chartData.PM_mini, chartData.PM, chartData.TVOC];
-            const dataObject_temp = chart_x['data']['datasets'][0]['data']
+            const dataObject_dataset = chart_x['data']['datasets'][0]['data']
+            const dataObject_time = chart_x['data']['labels']
 
-            if (X_flag === dataObject_temp.length){
-                dataObject_temp.shift()
-                dataObject_temp.push(chartData.BarPlot_X_RMS_Values[i])
+            if (XTimeData.length !== 0 && XRmsData){
 
-            }else{
-                dataObject_temp.push(chartData.BarPlot_X_RMS_Values[i])
+                dataObject_dataset.shift()
+                dataObject_time.shift()
 
-                X_flag++
+                dataObject_dataset.push(XRmsData)
+                dataObject_time.push(XTimeData)
 
-                console.log(X_flag)
             }
+
 
             window.myLine_x.update()
         }
-        async function dataRenderY(chartData){
+        async function dataRenderY(YRmsData, YTimeData){
 
-            const dataObject_temp = chart_x['data']['datasets'][0]['data']
+            const dataObject_dataset = chart_y['data']['datasets'][0]['data']
+            const dataObject_time = chart_y['data']['labels']
 
-            if (Y_flag === dataObject_temp.length){
-                dataObject_temp.shift()
-                dataObject_temp.push(chartData.BarPlot_Y_RMS_Values[i])
+            if (YTimeData.length !== 0 && YTimeData) {
 
-            }else{
-                dataObject_temp.push(chartData.BarPlot_Y_RMS_Values[i])
+                dataObject_dataset.shift()
+                dataObject_time.shift()
 
-                Y_flag++
+                dataObject_dataset.push(YRmsData)
+                dataObject_time.push(YTimeData)
 
-                console.log(Y_flag)
             }
+
             window.myLine_y.update()
 
         }
-        async function dataRenderZ(chartData){
+        async function dataRenderZ(ZRmsData, ZTimeData){
 
-            const dataObject_temp = chart_z['data']['datasets'][0]['data']
+            const dataObject_dataset = chart_z['data']['datasets'][0]['data']
+            const dataObject_time = chart_z['data']['labels']
 
             // queue
-            if (Z_flag === dataObject_temp.length){
-                dataObject_temp.shift()
-                dataObject_temp.push(chartData.BarPlot_Z_RMS_Values[i])
+            if (ZTimeData.length !== 0 && ZTimeData) {
 
-            }else{
-                dataObject_temp.push(chartData.BarPlot_Z_RMS_Values[i])
+                dataObject_dataset.shift()
+                dataObject_time.shift()
 
-                Z_flag++
+                dataObject_dataset.push(ZRmsData)
+                dataObject_time.push(ZTimeData)
 
-                console.log(Z_flag)
             }
 
             window.myLine_z.update()
 
         }
-        async function dataRenderXYZ(chartData){
-            const dataObject_temp = chart_xyz['data']['datasets'][0]['data']
+        async function dataRenderXYZ(XYZRmsData, XYZTimeData){
+
+            const dataObject_dataset = chart_xyz['data']['datasets'][0]['data']
+            const dataObject_time = chart_xyz['data']['labels']
 
             // queue
-            if (XYZ_flag === dataObject_temp.length){
-                dataObject_temp.shift()
-                dataObject_temp.push(chartData.BarPlot_XYZ_RMS_Values)
+            if (XYZTimeData.length !== 0) {
 
-            }else{
-                dataObject_temp.push(chartData.BarPlot_XYZ_RMS_Values)
+                dataObject_dataset.shift()
+                dataObject_time.shift()
 
-                XYZ_flag++
+                dataObject_dataset.push(XYZRmsData)
+                dataObject_time.push(XYZTimeData)
 
-                console.log(XYZ_flag)
             }
 
             window.myLine_xyz.update()
 
         }
 
-        async function UpdateWindow(){
-            const returnData = dataAsync(() => jsonData)
+        async function UpdateWindow(datas){
+            // const returnData = dataAsync(() => data)
+            console.log(datas)
+            await dataRenderX(datas[0], datas[1]);
+            await dataRenderY(datas[2], datas[3]);
+            await dataRenderZ(datas[4], datas[5]);
+            await dataRenderXYZ(datas[6], datas[7]);
 
-            await dataRenderX(returnData);
-            await dataRenderY(returnData);
-            await dataRenderZ(returnData);
-            await dataRenderXYZ(returnData);
+            i++;
         }
 
     </script>
@@ -263,7 +260,7 @@
     <div class="fixed-header">
         <div class>
             <nav>
-                <a href="/"><span style="font-size: 40px;">측정 시간 : {{ context.Measurement_Start_Time | safe }}</span></a>
+                <a href="/"><span style="font-size: 40px;">측정 시작 시간 : {{ context.Measurement_Start_Time | safe }}</span></a>
             </nav>
         </div>
     </div>
@@ -307,32 +304,15 @@
 
 const chart_x = {
 
-    // type: 'line',
-    // data: {
-    //     labels: [1,2,3,4,5,6],
-    //     datasets: [{
-    //         label: 'Real time data',
-    //         data: [12, 19, 3, 5, 2, 3],
-    //     }]
-    // },
-    // options: {
-    //     scales: {
-    //         yAxes: [{
-    //             ticks: {
-    //                 beginAtZero: true
-    //             }
-    //         }]
-    //     }
-    // }
 
     type: 'line',
     data: {
         // x axis label; x축
-        labels: {{ context.BarPlot_X_time | safe}},
+        labels: {{ context.BarPlot_X_Time | safe}},
         datasets: [{
             label: 'Acceleration X 축 rms 값',
-            backgroundColor: {{ context.backgroundColor | safe }},
-            borderColor: {{ context.borderColor | safe }},
+            backgroundColor: {{ context.XBackgroundColor | safe }},
+            borderColor: {{ context.XBorderColor | safe }},
 
             // x 축에 대응되는 값; y축
             data: {{ context.BarPlot_X_RMS_Values | safe}},
@@ -356,31 +336,34 @@ const chart_x = {
                 ticks: {
                     beginAtZero: false,
                     //stepSize: 0.5
-                    callback: function (value, index, values) {
-                        const rms_value = {{ context.BarPlot_X_time | safe}};
-                        let precision = Number((Math.abs(rms_value[index]) * 100).toPrecision(21));
-                        let converter = Math.round(precision) / 100 * Math.sign(rms_value[index]);
-                        console.log('1 : ' + converter)
-
-                        if (60.00 <= converter){
-                            precision = Number((Math.abs(rms_value[index]) * 100).toPrecision(21));
-                            converter = Math.round(precision) / 60 * Math.sign(rms_value[index])
-                            console.log('2 : ' + converter)
-
-                            if (3600.00 <= converter) {
-                                precision = Number((Math.abs(rms_value[index]) * 100).toPrecision(21));
-                                converter = Math.round(precision) / 3600 * Math.sign(rms_value[index])
-                                console.log('3 : ' + converter)
-
-                                return '+ ' + Math.round(converter) / 100 * Math.sign(rms_value[index]) + ' 시간';
-                            }
-
-                            return '+ ' + Math.round(converter) / 100 * Math.sign(rms_value[index]) + ' 분';
-
-                        }
-
-                        return '+ ' + converter + ' 초';
-                    }
+                    {#callback: function (value, index, values) {#}
+                    {#    const rms_value = chart_x['data']['labels'];#}
+                        {#if (index === 0){#}
+                        {#   return rms_value[index];#}
+                        {# }#}
+                    {#    let precision = Number((Math.abs(rms_value[index]) * 100).toPrecision(21));#}
+                    {#    let converter = Math.round(precision) / 100 * Math.sign(rms_value[index]);#}
+                    {#    // console.log('1 : ' + converter)#}
+                    {##}
+                    {#    if (60.00 <= converter){#}
+                    {#        precision = Number((Math.abs(rms_value[index]) * 100).toPrecision(21));#}
+                    {#        converter = Math.round(precision) / 60 * Math.sign(rms_value[index])#}
+                    {#        // console.log('2 : ' + converter)#}
+                    {##}
+                    {#        if (3600.00 <= converter) {#}
+                    {#            precision = Number((Math.abs(rms_value[index]) * 100).toPrecision(21));#}
+                    {#            converter = Math.round(precision) / 3600 * Math.sign(rms_value[index])#}
+                    {#            // console.log('3 : ' + converter)#}
+                    {##}
+                    {#            return '+ ' + Math.round(converter) / 100 * Math.sign(rms_value[index]) + ' 시간';#}
+                    {#        }#}
+                    {##}
+                    {#        return '+ ' + Math.round(converter) / 100 * Math.sign(rms_value[index]) + ' 분';#}
+                    {##}
+                    {#     }#}
+                    {##}
+                    {#    return '+ ' + converter + ' 초';#}
+                    {# }#}
                 },
                 title: {
                     display: true,
@@ -399,13 +382,6 @@ const chart_x = {
                 ctx.textAlign = "center";
                 ctx.textBaseline = "bottom";
 
-                {#this.data.datasets.forEach(function (dataset, i) {#}
-                {#    const meta = chartInstance.controller.getDatasetMeta(i);#}
-                {#    meta.data.forEach(function (bar, index) {#}
-                {#        const data = dataset.data[index];#}
-                {#        ctx.fillText(data, bar._model.x, bar._model.y - 5);#}
-                {#    })#}
-                //})
             }
         }
     }
@@ -418,11 +394,11 @@ window.myLine_x = new Chart(ctx_x, chart_x);
 const chart_y = {
      type: 'line',
      data: {
-         labels: {{ context.BarPlot_Y_time | safe }},
+         labels: {{ context.BarPlot_Y_Time | safe }},
          datasets: [{
              label: 'Acceleration Y 축 rms 값',
-             backgroundColor: {{ context.backgroundColor | safe }},
-                 borderColor: {{ context.borderColor | safe }},
+             backgroundColor: {{ context.YBackgroundColor | safe }},
+                 borderColor: {{ context.YBorderColor | safe }},
              data: {{ context.BarPlot_Y_RMS_Values | safe }},
              fill: false
          }]
@@ -444,20 +420,23 @@ const chart_y = {
                     beginAtZero: false,
                     //stepSize: 0.5
                     callback: function (value, index, values) {
-                        const rms_value = {{ context.BarPlot_Y_time | safe}};
+                        const rms_value = chart_y['data']['labels'];
+                        if (index === 0){
+                           return rms_value[index];
+                         }
                         let precision = Number((Math.abs(rms_value[index]) * 100).toPrecision(21));
                         let converter = Math.round(precision) / 100 * Math.sign(rms_value[index]);
-                        console.log('1 : ' + converter)
+                        // console.log('1 : ' + converter)
 
                         if (60.00 <= converter){
                             precision = Number((Math.abs(rms_value[index]) * 100).toPrecision(21));
                             converter = Math.round(precision) / 60 * Math.sign(rms_value[index])
-                            console.log('2 : ' + converter)
+                            // console.log('2 : ' + converter)
 
                             if (3600.00 <= converter) {
                                 precision = Number((Math.abs(rms_value[index]) * 100).toPrecision(21));
                                 converter = Math.round(precision) / 3600 * Math.sign(rms_value[index])
-                                console.log('3 : ' + converter)
+                                // console.log('3 : ' + converter)
 
                                 return '+ ' + Math.round(converter) / 100 * Math.sign(rms_value[index]) + ' 시간';
                             }
@@ -486,13 +465,6 @@ const chart_y = {
                 ctx.textAlign = "center";
                 ctx.textBaseline = "bottom";
 
-                {#this.data.datasets.forEach(function (dataset, i) {#}
-                {#    const meta = chartInstance.controller.getDatasetMeta(i);#}
-                {#    meta.data.forEach(function (bar, index) {#}
-                {#        const data = dataset.data[index];#}
-                {#        ctx.fillText(data, bar._model.x, bar._model.y - 5);#}
-                {#    })#}
-                //})
             }
         }
     }
@@ -506,11 +478,11 @@ window.myLine_y = new Chart(ctx_y, chart_y);
 const chart_z = {
      type: 'line',
      data: {
-         labels: {{ context.BarPlot_Z_time | safe }},
+         labels: {{ context.BarPlot_Z_Time | safe }},
          datasets: [{
              label: 'Acceleration Z 축 rms 값',
-             backgroundColor: {{ context.backgroundColor | safe }},
-             borderColor: {{ context.borderColor | safe }},
+             backgroundColor: {{ context.ZBackgroundColor | safe }},
+             borderColor: {{ context.ZBorderColor | safe }},
              data: {{ context.BarPlot_Z_RMS_Values | safe }},
              fill: false
          }]
@@ -532,20 +504,20 @@ const chart_z = {
                     beginAtZero: false,
                     //stepSize: 0.5
                     callback: function (value, index, values) {
-                        const rms_value = {{ context.BarPlot_Z_time | safe}};
+                        const rms_value = chart_z['data']['labels'];
                         let precision = Number((Math.abs(rms_value[index]) * 100).toPrecision(21));
                         let converter = Math.round(precision) / 100 * Math.sign(rms_value[index]);
-                        console.log('1 : ' + converter)
+                        // console.log('1 : ' + converter)
 
                         if (60.00 <= converter){
                             precision = Number((Math.abs(rms_value[index]) * 100).toPrecision(21));
                             converter = Math.round(precision) / 60 * Math.sign(rms_value[index])
-                            console.log('2 : ' + converter)
+                            // console.log('2 : ' + converter)
 
                             if (3600.00 <= converter) {
                                 precision = Number((Math.abs(rms_value[index]) * 100).toPrecision(21));
                                 converter = Math.round(precision) / 3600 * Math.sign(rms_value[index])
-                                console.log('3 : ' + converter)
+                                // console.log('3 : ' + converter)
 
                                 return '+ ' + Math.round(converter) / 100 * Math.sign(rms_value[index]) + ' 시간';
                             }
@@ -575,13 +547,6 @@ const chart_z = {
             ctx.textAlign = "center";
             ctx.textBaseline = "bottom";
 
-            {#this.data.datasets.forEach(function (dataset, i) {#}
-            {#    const meta = chartInstance.controller.getDatasetMeta(i);#}
-            {#    meta.data.forEach(function (bar, index) {#}
-            {#        const data = dataset.data[index];#}
-            {#        ctx.fillText(data, bar._model.x, bar._model.y - 5);#}
-            {#    })#}
-            //})
         }
     }
 }
@@ -593,12 +558,12 @@ window.myLine_z = new Chart(ctx_z, chart_z);
 const chart_xyz = {
      type: 'line',
      data: {
-         labels: {{ context.BarPlot_XYZ_time  | safe }},
+         labels: {{ context.BarPlot_XYZ_Time  | safe }},
          datasets: [
              {
                  label: 'Acceleration XYZ 축 rms 값',
-                 backgroundColor: {{ context.backgroundColor | safe }},
-                 borderColor: {{ context.borderColor | safe }},
+                 backgroundColor: {{ context.XYZBackgroundColor | safe }},
+                 borderColor: {{ context.XYZBorderColor | safe }},
                  data: {{ context.BarPlot_XYZ_RMS_Values | safe }},
                  fill: false
              }
@@ -621,20 +586,20 @@ const chart_xyz = {
                     beginAtZero: true,
                     //stepSize: 0.5
                     callback: function (value, index, values) {
-                        const rms_value = {{ context.BarPlot_XYZ_time | safe}};
+                        const rms_value = chart_xyz['data']['labels'];
                         let precision = Number((Math.abs(rms_value[index]) * 100).toPrecision(21));
                         let converter = Math.round(precision) / 100 * Math.sign(rms_value[index]);
-                        console.log('1 : ' + converter)
+                        // console.log('1 : ' + converter)
 
                         if (60.00 <= converter){
                             precision = Number((Math.abs(rms_value[index]) * 100).toPrecision(21));
                             converter = Math.round(precision) / 60 * Math.sign(rms_value[index])
-                            console.log('2 : ' + converter)
+                           //  console.log('2 : ' + converter)
 
                             if (3600.00 <= converter) {
                                 precision = Number((Math.abs(rms_value[index]) * 100).toPrecision(21));
                                 converter = Math.round(precision) / 3600 * Math.sign(rms_value[index])
-                                console.log('3 : ' + converter)
+                                // console.log('3 : ' + converter)
 
                                 return '+ ' + Math.round(converter) / 100 * Math.sign(rms_value[index]) + ' 시간';
                             }
@@ -676,5 +641,39 @@ const chart_xyz = {
 }
 const ctx_xyz = document.getElementById('xyzAxisGraph').getContext('2d');
 window.myLine_xyz = new Chart(ctx_xyz, chart_xyz);
+</script>
+<script>
+{#function ajaxTest(){#}
+{##}
+{#            $.ajax({#}
+{#                type: "POST",#}
+{#                // 403 forbidden 방지#}
+{#                headers: { 'X-CSRFToken': '{{csrf_token}}' },#}
+{#                url: "draw/",#}
+{#                data: {#}
+{#                    'sensor_tag': jsonData.sensor_tag#}
+{#                },#}
+{#                error: function() {#}
+{#                  alert('통신실패!!');#}
+{#                },#}
+{#                success: function(data) {#}
+{##}
+{#                    const datas = [#}
+{#                        data['info'].BarPlot_X_RMS_Values,#}
+{#                        data['info'].BarPlot_X_Time,#}
+{#                        data['info'].BarPlot_Y_RMS_Values,#}
+{#                        data['info'].BarPlot_Y_Time,#}
+{#                        data['info'].BarPlot_Z_RMS_Values,#}
+{#                        data['info'].BarPlot_Z_Time,#}
+{#                        data['info'].BarPlot_XYZ_RMS_Values,#}
+{#                        data['info'].BarPlot_XYZ_Time#}
+{#                    ]#}
+{#                    UpdateWindow(datas)#}
+{#                }#}
+{#            });#}
+{#        }#}
+{#        playAlert = setInterval(function() {#}
+{#            ajaxTest();#}
+{#        }, 60000);#}
 </script>
 {% endblock content %}

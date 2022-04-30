@@ -93,6 +93,7 @@ if __name__ == '__main__':
         else:
             schedule.run_pending()
             time.sleep(1)
+
     #except KeyboardInterrupt:
     #    print("Terminated sending data")
     #    if len(errors_occurred)>0:

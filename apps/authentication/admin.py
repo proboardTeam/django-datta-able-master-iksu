@@ -59,6 +59,11 @@ class CompanyChoiceField(forms.ModelChoiceField):
         return f"Company: {obj.company_name}"
 
 
+class MachineChoiceField(forms.ModelChoiceField):
+    def label_from_instance(self, obj):
+        print(f'object : {obj}')
+        return f"Machine: {obj.machine_name}"
+
 # Register your models here.
 # 맨 처음 화면, 등록된 모델마다 메뉴가 생김
 @admin.register(UserProfile)
@@ -169,6 +174,11 @@ class MachineAdmin(admin.ModelAdmin):
     list_display = ('machine_name', 'sensor_name',)
     inlines = (SensorInline,)
 
+    def formfield_for_foreignkey(self, db_field, request, **kwargs):
+        if db_field.name == 'company_fk':
+            return CompanyChoiceField(queryset=CompanyProfile.objects.all())
+        return super().formfield_for_foreignkey(db_field, request, **kwargs)
+
     # obj = Machine
     def sensor_name(self, obj):
         str_list = []
@@ -185,6 +195,11 @@ class MachineAdmin(admin.ModelAdmin):
 class SensorAdmin(admin.ModelAdmin):
     # pass
     list_display = ('sensor_parent', 'sensor_mac', 'sensor_name',)
+
+    def formfield_for_foreignkey(self, db_field, request, **kwargs):
+        if db_field.name == 'machine_fk':
+            return MachineChoiceField(queryset=Machine.objects.all())
+        return super().formfield_for_foreignkey(db_field, request, **kwargs)
 
     # obj = Sensor
     def sensor_name(self, obj):

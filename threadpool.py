@@ -6,11 +6,8 @@ result = 0
 
 def thread_one(results):
     global result
-    while 1:
-        for i in range(10000):
-            result += 1
-        result -= 9999
-        print(f'one : {time.time()}, result: {result}\n')
+    time.sleep(1)
+    return "str test"
 
 
 def thread_two(results):
@@ -25,13 +22,12 @@ def thread_two(results):
 def main():
     global result
     with ThreadPoolExecutor(max_workers=4) as exe:
-        start_time = time.time()
+        # start_time = time.time()
+        #
+        # end_time = time.time()
 
-        end_time = time.time()
-        exe.submit(thread_one, end_time - start_time)
-
-        exe.submit(thread_two, end_time - start_time)
-
+        future = exe.submit(thread_one, result)
+        print(future.result())
 
 if __name__ == '__main__':
     # while 1:

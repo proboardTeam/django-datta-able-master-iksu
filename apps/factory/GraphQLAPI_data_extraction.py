@@ -295,7 +295,7 @@ def hpf_loop(valuesX, valuesY, valuesZ, fRangesX, fRangesY, fRangesZ, sampleRate
                 sampleRate=s[i],
                 hpf=3
             )
-        transformed.append(v)
+        transformed.append(v[i])
     return transformed
 
 
@@ -330,8 +330,11 @@ if __name__ == '__main__':
 
     endtime = time.time() - 3600 * 12
     starttime = endtime - 3600 * 24
-    end_time_stamp_str = datetime.datetime.fromtimestamp(endtime).strftime("%Y-%m-%dT%H:%M:%S.%f+00:00")
-    start_time_stamp_str = datetime.datetime.fromtimestamp(starttime).strftime("%Y-%m-%dT%H:%M:%S.%f+00:00")
+    # end_time_stamp_str = datetime.datetime.fromtimestamp(endtime).strftime("%Y-%m-%dT%H:%M:%S.%f+00:00")
+    # start_time_stamp_str = datetime.datetime.fromtimestamp(starttime).strftime("%Y-%m-%dT%H:%M:%S.%f+00:00")
+    start_time_stamp_str = "2022-04-26T00:53:09.126000+00:00"
+    end_time_stamp_str = "2022-04-26T01:41:44.000000+00:00"
+
     print(f'start time = {start_time_stamp_str}, end time = {end_time_stamp_str}')
 
     timeZone = "Asia/Seoul"  # local time zone
@@ -525,34 +528,53 @@ if __name__ == '__main__':
     # data2 = [{"serviceId":"76", "deviceId":"reshenie1", "timestamp": d, "contents":{"XRms": x,"YRms": y, "ZRms": z, "gKurtX": kx, "gKurtY": ky, "gKurtZ": kz, "BoardTemperature": t}} for d, x, y, z, kx, ky, kz, t in zip_longest(epochDates, XRmsRawValue, YRmsRawValue, ZRmsRawValue, gKurtXRawValue, gKurtYRawValue, gKurtZRawValue, boardTemperatureValue)]
     # data2 = [{"serviceId":"76", "deviceId":"reshenie1", "timestamp": d, "contents":{"XRms": x}} for d, x in zip_longest(epochDates, XRmsRawValue1)]
 
-    # with open('C:/Users/user/Iqunet_reshenie_old_test/Reshenie_Old_wirevibsensor/BKT_reshenie_Vibration_PWR_data12.json', 'w') as json_file:
-    #     for i in range(len(epochDatesX)):
-    #         data2 = [{"serviceId": "76", "deviceId": "reshenie1", "timestamp": epochDatesX[i],
-    #                   "contents": {"XRms": XRmsRawValue[i], "gKurtX": gKurtXRawValue[i], "YRms": None, "gKurtY": None,
-    #                                "ZRms": None, "gKurtZ": None, "BoradTemperature": None}}]
-    #         json.dump(data2, json_file, indent=4)
-    #
-    #     for i in range(len(epochDatesY)):
-    #         data2 = [{"serviceId": "76", "deviceId": "reshenie1", "timestamp": epochDatesY[i],
-    #                   "contents": {"XRms": None, "gKurtX": None, "YRms": YRmsRawValue[i], "gKurtY": gKurtYRawValue[i],
-    #                                "ZRms": None, "gKurtZ": None, "BoradTemperature": None}}]
-    #         json.dump(data2, json_file, indent=4)
-    #
-    #     for i in range(len(epochDatesZ)):
-    #         data2 = [{"serviceId": "76", "deviceId": "reshenie1", "timestamp": epochDatesZ[i],
-    #                   "contents": {"XRms": None, "gKurtX": None, "YRms": None, "gKurtY": None, "ZRms": ZRmsRawValue[i],
-    #                                "gKurtZ": gKurtZRawValue[i], "BoradTemperature": None}}]
-    #         json.dump(data2, json_file, indent=4)
+    with open('C:/Users/user/Desktop/4월5주차 자료/current_gql_data.json', 'w') as json_file:
+        json_x_result = []
+        for i in range(len(epochDatesX)):
+            data2 = [{"serviceId": "76", "deviceId": "reshenie1", "timestamp": epochDatesX[i],
+                      "contents": {"XRms": XRmsRawValue[i], "gKurtX": gKurtXRawValue[i], "YRms": None, "gKurtY": None,
+                                   "ZRms": None, "gKurtZ": None, "BoradTemperature": None}}]
 
-    for i in range(len(epochDatesX)):
-        data2 = [{"serviceId": "76", "deviceId": "reshenie1", "timestamp": epochDatesX[i],
-                  "contents": {"XRms": XRmsRawValue[i], "gKurtX": gKurtXRawValue[i], "YRms": None, "gKurtY": None,
-                               "ZRms": None, "gKurtZ": None, "BoradTemperature": None}}]
-        json.dumps(data2, indent=4)
+            json.dump(data2, json_file, indent=4)
+        #     x_result = json.dumps(data2, indent=4)
+        #     json_x_result.extend(json.loads(x_result))
+        # for json_x in json_x_result:
+        #     print(json_x['contents']['XRms'])
+
+        json_y_result = []
+        for i in range(len(epochDatesY)):
+            data2 = [{"serviceId": "76", "deviceId": "reshenie1", "timestamp": epochDatesY[i],
+                      "contents": {"XRms": None, "gKurtX": None, "YRms": YRmsRawValue[i], "gKurtY": gKurtYRawValue[i],
+                                   "ZRms": None, "gKurtZ": None, "BoradTemperature": None}}]
+
+            json.dump(data2, json_file, indent=4)
+        #     y_result = json.dumps(data2, indent=4)
+        #     json_y_result.extend(json.loads(y_result))
+        # for json_y in json_y_result:
+        #     print(json_y['contents']['YRms'])
+
+        json_z_result = []
+        for i in range(len(epochDatesZ)):
+            data2 = [{"serviceId": "76", "deviceId": "reshenie1", "timestamp": epochDatesZ[i],
+                      "contents": {"XRms": None, "gKurtX": None, "YRms": None, "gKurtY": None, "ZRms": ZRmsRawValue[i],
+                                   "gKurtZ": gKurtZRawValue[i], "BoradTemperature": None}}]
+
+            json.dump(data2, json_file, indent=4)
+        #     z_result = json.dumps(data2, indent=4)
+        #     json_z_result.extend(json.loads(z_result))
+        # for json_z in json_z_result:
+        #     print(json_z['contents']['ZRms'])
+
+    # for i in range(len(epochDatesX)):
+    #     data2 = [{"serviceId": "76", "deviceId": "reshenie1", "timestamp": epochDatesX[i],
+    #               "contents": {"XRms": XRmsRawValue[i], "gKurtX": gKurtXRawValue[i], "YRms": None, "gKurtY": None,
+    #                            "ZRms": None, "gKurtZ": None, "BoradTemperature": None}}]
+    #     json.dumps(data2, indent=4)
 
     data2 = [{"serviceId": "76", "deviceId": "reshenie1", "timestamp": dateT,
               "contents": {"XRms": None, "gKurtX": None, "YRms": None, "gKurtY": None, "ZRms": None, "gKurtZ": None,
                            "BoradTemperature": temperature}}]
-    json.dumps(data2, indent=4)
+    # json.dumps(data2, indent=4)
+    json.dump(data2, json_file, indent=4)
 
     print(start_time_stamp_str + ' ' + end_time_stamp_str)

@@ -5,60 +5,135 @@ Created on Thu Nov  4 15:39:07 2021
 @author: Sumin Lee
 """
 
-import time
 import sys
-import pytz
 import logging
 import datetime
 from urllib.parse import urlparse
-import matplotlib.pyplot as plt
-import json
 import numpy as np
 import math
 import scipy.signal
 from scipy import stats
-import csv
-# from datetime import datetime
-import calendar
-from itertools import zip_longest
-import pandas as pd
-from dateutil import parser
-from opcua import ua, Client
-from azure.servicebus import ServiceBusClient, ServiceBusMessage
+from opcua import ua, Client, client
 import json
 import time
-from azure.servicebus._common.constants import MAX_ABSOLUTE_EXPIRY_TIME
 import schedule
-import re
-from opcua.common.node import Node
-from azure.servicebus import ServiceBusClient, ServiceBusMessage
-from azure.servicebus._common.constants import MAX_ABSOLUTE_EXPIRY_TIME
 from itertools import chain
+from django.http import HttpResponse, HttpResponseRedirect, JsonResponse
+from apps.factory.serializer import RequestFactorySerializer
+import requests
+import matplotlib.pyplot as plt
+from concurrent.futures import ThreadPoolExecutor
+from apps.home.views import gql_process
+from django.shortcuts import render
+from django import template
+
+register = template.Library()
 
 
-def send_a_list_of_messages(sender, tr_data):
-    # create a list of messages
-    # messages = [ServiceBusMessage(str(json_data)) for _ in range(1)]
-    messages = []
-    for i in range(len(tr_data)):
-        a = ServiceBusMessage(str(tr_data[i]))
-        messages.append(a)
-    print(len(tr_data), messages)
-    # print(messages, type(messages))
-    current_time = datetime.datetime.now()
+def hpf_loop(**data):
+    transformed = []
+    x_valid = data.get('valuesX')
+    y_valid = data.get('valuesY')
+    z_valid = data.get('valuesZ')
+    x_range_valid = data.get('fRangesX')
+    y_range_valid = data.get('fRangesY')
+    z_range_valid = data.get('fRangesZ')
+    x_sample_valid = data.get('sampleRatesX')
+    y_sample_valid = data.get('sampleRatesY')
+    z_sample_valid = data.get('sampleRatesZ')
 
-    if not messages:
-        print("there are no data during this period")
-        print(current_time)
-        pass
+    x_flag = y_flag = z_flag = 1
+    if x_valid is None or not x_valid or len(x_valid) == 0:
+        x_flag = 0
+    if y_valid is None or not y_valid or len(y_valid) == 0:
+        y_flag = 0
+    if z_valid is None or not z_valid or len(z_valid) == 0:
+        z_flag = 0
+
+    if x_flag == 1:
+        v = x_valid
+        f = x_range_valid
+        s = x_sample_valid
+
+        for i in range(len(f)):
+            v[i] = [d / 512.0 * f[i] for d in v[i]]
+            v[i] = HighPassFilter.perform_hpf_filtering(
+                data=v[i],
+                sampleRate=s[i],
+                hpf=6
+            )
+            transformed.append(v[i])
+            print(f'transformed : {transformed}')
+
+        print(f'transformed done : {transformed}')
+        return transformed
+
+    if y_flag == 1:
+        v = y_valid
+        f = y_range_valid
+        s = y_sample_valid
+
+        # print(f'len(f) = {len(f)}')
+
+        for i in range(len(f)):
+            v[i] = [d / 512.0 * f[i] for d in v[i]]
+            v[i] = HighPassFilter.perform_hpf_filtering(
+                data=v[i],
+                sampleRate=s[i],
+                hpf=6
+            )
+            transformed.append(v[i])
+            print(f'y_transformed : {transformed}')
+
+        return transformed
+
+    if z_flag == 1:
+        for (v, f, s) in list(zip([z_valid], [z_range_valid], [z_sample_valid])):
+
+            # print(f'len(f) = {len(f)}')
+
+            for i in range(len(f)):
+                try:
+                    v[i] = [d / 512.0 * f[i] for d in v[i]]
+                    v[i] = HighPassFilter.perform_hpf_filtering(
+                        data=v[i],
+                        sampleRate=s[i],
+                        hpf=6
+                    )
+                    transformed.append(v[i])
+
+                except TypeError:
+                    transformed.append(v[i])
+
+        return transformed
+
+    if x_flag == y_flag == z_flag == 1:
+        for (v, f, s) in list(zip([x_valid, y_valid, z_valid], [x_range_valid, y_range_valid, z_range_valid],
+                                  [x_sample_valid, y_sample_valid, z_sample_valid])):
+
+            # print(f'len(f) = {len(f)}')
+
+            for i in range(len(f)):
+                try:
+                    v[i] = [d / 512.0 * f[i] for d in v[i]]
+                    v[i] = HighPassFilter.perform_hpf_filtering(
+                        data=v[i],
+                        sampleRate=s[i],
+                        hpf=6
+                    )
+                    transformed.append(v[i])
+
+                except TypeError:
+                    transformed.append(v[i])
+
+        return transformed
+
     else:
-        try:
-            sender.send_messages(messages)
-            print("Done sending messages")
-            print("-----------------------")
-            print(current_time)
-        except:
-            print("Error in sending messages")
+        return None
+
+
+def rms(ndarray):
+    return np.sqrt(np.mean(ndarray ** 2))
 
 
 class HighPassFilter(object):
@@ -359,12 +434,12 @@ class DataAcquisition(object):
                 cont=contId
             )
             if not len(partial):
-                DataAcquisition.LOGGER.warn(
+                DataAcquisition.LOGGER.warning(
                     'No data was returned for {:s}'.format(endNodeName)
                 )
                 break
             dvList.extend(partial)
-            sys.stdout.write('\r    Loaded {:d} values, {:s} -> {:s}'.format(
+            sys.stdout.write('\r    Loaded {:d} values, {:s} -> {:s}\n'.format(
                 len(dvList),
                 str(dvList[0].ServerTimestamp.strftime("%Y-%m-%d %H:%M:%S")),
                 str(dvList[-1].ServerTimestamp.strftime("%Y-%m-%d %H:%M:%S"))
@@ -374,6 +449,9 @@ class DataAcquisition(object):
                 break  # No more data.
             if len(dvList) >= DataAcquisition.MAX_VALUES_PER_ENDNODE:
                 break  # Too much data.
+
+            # print(f"dvList : {dvList}")
+
         sys.stdout.write('...OK.\n')
         return dvList
 
@@ -437,19 +515,21 @@ class DataAcquisition(object):
         return models
 
 
-def rms(arr):
-    return np.sqrt(np.mean(arr ** 2))
-
-
-def main(sensor, duration):
+def opcua_process(sensor_tag):
+    time.sleep(1)
 
     # '25.31.102.59', "ziincheol1",'0d:66:24:8e','84'
     # servName = sensor.servName
     # servIP = sensor.servIP
     # macID = sensor.macID
+    start_proc = time.time()
+
     servName = "reshenie1"
     servIP = "25.52.52.52"
-    macID = "a3:40:ba:60"
+    # servIP = "25.9.7.151"
+
+    sensor = RequestFactorySerializer.request_sensor_name_check(sensor_tag)
+    macID = sensor.get().sensor_mac
 
     logging.basicConfig(level=logging.INFO)
     logging.getLogger("opcua").setLevel(logging.WARNING)
@@ -468,7 +548,7 @@ def main(sensor, duration):
     # macId='66:a0:b7:9d' #(SKT2) Polytec Pump_Left_vib
     # macId='94:f3:9e:df' #(SKT1) GPN Etching_White
     macId = macID  # (SKT1) GPN Etching_Black
-    # macId='82:8e:2c:a3' #(BKT) KPI Press_Vib_110Right 
+    # macId='82:8e:2c:a3' #(BKT) KPI Press_Vib_110Right
     # macId='9b:a3:eb:47' #(BKT) KPI Press_Vib_80Left
 
     # change settings
@@ -476,8 +556,17 @@ def main(sensor, duration):
     # axis = 'Y'  # axis allows to select data from only 1 or multiple axes
     hpf = 6
 
-    endtime = datetime.datetime.now() - datetime.timedelta(minutes=540)
-    starttime = endtime - datetime.timedelta(minutes=duration)
+    # endtime = datetime.datetime.now() - datetime.timedelta(minutes=60 * 24)
+    # starttime = endtime - datetime.timedelta(minutes=60 * 24)
+
+    start_time_stamp_str = "2022-04-19"
+    end_time_stamp_str = "2022-04-20"
+
+    endtime = datetime.datetime.strptime("2022-04-20", '%Y-%m-%d')
+    starttime = datetime.datetime.strptime("2022-04-19", '%Y-%m-%d')
+
+    # end_time_stamp_str = "2022-04-20"
+    # start_time_stamp_str = "2022-04-19"
 
     (values, dates) = DataAcquisition.get_sensor_data(
         serverUrl=serverUrl,
@@ -687,55 +776,443 @@ def main(sensor, duration):
                  for (d, x, y, z, kx, ky, kz, adX, adY, adZ, t, v) in list(
                 zip(time_list, Xrms_list, Yrms_list, Zrms_list, Xkurt_list, Ykurt_list, Zkurt_list, X_AD, Y_AD, Z_AD,
                     Temp_list, Voltage_list))]
-    except:
+
+        data_list = []
+        json_results = []
+        x_rms, y_rms, z_rms, x_kurt, y_kurt, z_kurt, x_pred_error, y_pred_error, z_pred_error, board_temperature, battery_state = [], [], [], [], [], [], [], [], [], [], []
+
+        for i in range(len(data2)):
+            data = [data2[i]['contents']]
+            json_results.append(data)
+
+            # data_list.append(data)
+
+        print(f'result length : {len(json_results)}')
+
+        # print(json.dumps(data2, indent=4))
+        # print(json.dumps(data_list, indent=4))
+
+        # data_list.append(data2)
+        print("Done dumping data")
+        j = 0
+        for i in range(len(json_results)):
+            x_rms.append(json_results[i][j]['XRms'])
+            y_rms.append(json_results[i][j]['YRms'])
+            z_rms.append(json_results[i][j]['ZRms'])
+            x_kurt.append(json_results[i][j]['gKurtX'])
+            y_kurt.append(json_results[i][j]['gKurtY'])
+            z_kurt.append(json_results[i][j]['gKurtZ'])
+            x_pred_error.append(json_results[i][j]['XaiPredError'])
+            y_pred_error.append(json_results[i][j]['YaiPredError'])
+            z_pred_error.append(json_results[i][j]['ZaiPredError'])
+            board_temperature.append(json_results[i][j]['BoardTemperature'])
+            battery_state.append(json_results[i][j]['BatteryState'])
+            # if i == 9:
+            #     break
+
+        # contents = {
+        #     'RMS': {'X': x_rms, 'Y': y_rms, 'Z': z_rms},
+        #     'kurtosis': {'X': x_kurt, 'Y': y_kurt, 'Z': z_kurt},
+        #     'predict_error': {'X': x_pred_error, 'Y': y_pred_error, 'Z': z_pred_error},
+        #     'board_temperature': {'board_temperature': board_temperature},
+        #     'battery_state': {'battery_state': battery_state}
+        # }
+
+        end_proc = time.time() - start_proc
+        print(f"opc-ua process time : {end_proc}")
+
+        return end_proc
+
+    except ValueError:
+        print("cancel")
+
+
+def protocol_test(request, sensor_tag):
+    start_time = time.time()
+
+    with ThreadPoolExecutor(max_workers=2) as TPE:
+        gql_future = TPE.submit(gql_process, sensor_tag)
+
+        opcua_future = TPE.submit(opcua_process, sensor_tag)
+
+    # gql_future = gql_process(sensor_tag)
+    # opcua_future = opcua_process(sensor_tag)
+
+    end_time = time.time() - start_time
+
+    # print(f'gql_future : {gql_future.result()}')
+    # print(f'opcua_future : {opcua_future.result()}')
+
+    # return JsonResponse({'gql_future': gql_future.result(), 'opcua_future': opcua_future.result(),
+    #                      'current process time': end_time}, status=201)
+
+    # return JsonResponse({'gql_future': gql_future, 'opcua_future': opcua_future,  'current process time': end_time},
+    #                     status=201)
+
+    context = {
+        'gql_result': [gql_future.result()],
+        'opcua_result': [opcua_future.result()],
+        'current_running_time': [end_time],
+        'sensor_tag': sensor_tag
+
+    }
+    return render(request, template_name='home/compare.html', context={'context': context})
+
+
+@register.filter
+def protocol_repeat(sensor_tag):
+    start_time = time.time()
+
+    with ThreadPoolExecutor(max_workers=2) as TPE:
+        gql_future = TPE.submit(gql_process, sensor_tag)
+
+        opcua_future = TPE.submit(opcua_process, sensor_tag)
+
+    # gql_future = gql_process(sensor_tag)
+    # opcua_future = opcua_process(sensor_tag)
+
+    end_time = time.time() - start_time
+
+    # print(f'gql_future : {gql_future.result()}')
+    # print(f'opcua_future : {opcua_future.result()}')
+
+    # return JsonResponse({'gql_future': gql_future.result(), 'opcua_future': opcua_future.result(),
+    #                      'current process time': end_time}, status=201)
+
+    # return JsonResponse({'gql_future': gql_future, 'opcua_future': opcua_future,  'current process time': end_time},
+    #                     status=201)
+
+    context = {
+        'gql_result': gql_future.result(),
+        'opcua_result': opcua_future.result(),
+        'current_running_time': end_time,
+
+    }
+
+    return context
+
+
+def main(request, sensor_tag):
+    # '25.31.102.59', "ziincheol1",'0d:66:24:8e','84'
+    # servName = sensor.servName
+    # servIP = sensor.servIP
+    # macID = sensor.macID
+    start_proc = time.time()
+
+    servName = "reshenie1"
+    servIP = "25.52.52.52"
+
+    sensor = RequestFactorySerializer.request_sensor_name_check(sensor_tag)
+    macID = sensor.get().sensor_mac
+
+    logging.basicConfig(level=logging.INFO)
+    logging.getLogger("opcua").setLevel(logging.WARNING)
+
+    # serverIP = '25.17.10.130' #SKT2_polytec
+    serverIP = servIP  # SKT1_GPN
+    # serverIP = '25.3.15.233' #BKT_KPI
+
+    # serverIP = sensor.servIP
+    # macId = sensor.macID
+    # deviceId = sensor.servName
+
+    serverUrl = urlparse('opc.tcp://{:s}:4840'.format(serverIP))
+
+    # macId='05:92:6d:a7' #(SKT2) Polytec Pump_Left_vib
+    # macId='66:a0:b7:9d' #(SKT2) Polytec Pump_Left_vib
+    # macId='94:f3:9e:df' #(SKT1) GPN Etching_White
+    macId = macID  # (SKT1) GPN Etching_Black
+    # macId='82:8e:2c:a3' #(BKT) KPI Press_Vib_110Right 
+    # macId='9b:a3:eb:47' #(BKT) KPI Press_Vib_80Left
+
+    # change settings
+    limit = 1000  # limit limits the number of returned measurements
+    # axis = 'Y'  # axis allows to select data from only 1 or multiple axes
+    hpf = 6
+
+    endtime = datetime.datetime.now() + datetime.timedelta(hours=8)
+    starttime = endtime - datetime.timedelta(hours=24.5)
+
+    # endtime = "2022-04-25 23:59:59.999999"
+    # starttime = "2022-04-25 00:00:00.000000"
+
+    print(f"opcua start time : {starttime}")
+    print(f"opcua end time : {endtime}")
+
+    # end_time_stamp_str = "2022-04-20"
+    # start_time_stamp_str = "2022-04-19"
+
+    (values, dates) = DataAcquisition.get_sensor_data(
+        serverUrl=serverUrl,
+        macId=macId,
+        browseName="accelerationPack",
+        starttime=starttime,
+        endtime=endtime
+    )
+
+    # convert vibration data to 'g' units and plot data
+    data = [val[1:-6] for val in values]
+    sampleRates = [val[-6] for val in values]
+    formatRanges = [val[-5] for val in values]
+    axes = [val[-3] for val in values]
+    for i in range(len(formatRanges)):
+        data[i] = [d / 512.0 * formatRanges[i] for d in data[i]]
+        data[i] = HighPassFilter.perform_hpf_filtering(
+            data=data[i],
+            sampleRate=sampleRates[i],
+            hpf=hpf
+        )
+
+    (temperatures, datesT) = DataAcquisition.get_sensor_data(
+        serverUrl=serverUrl,
+        macId=macId,
+        browseName="boardTemperature",  # 3
+        starttime=starttime,
+        endtime=endtime
+    )
+
+    (batteryVoltage, datesV) = DataAcquisition.get_sensor_data(
+        serverUrl=serverUrl,
+        macId=macId,
+        browseName="batteryVoltage",  # 2
+        starttime=starttime,
+        endtime=endtime
+    )
+
+    dates = [round(datetime.datetime.strptime(date, "%Y-%m-%d %H:%M:%S").timestamp() * 1000 + 3600000 * 9) for date in
+             dates]
+    print(f"opcua dates: {dates}")
+
+    datesT = [round(datetime.datetime.strptime(date, "%Y-%m-%d %H:%M:%S").timestamp() * 1000 + 3600000 * 9) for date in
+              datesT]
+    print(f"opcua datesT: {datesT}")
+
+    datesV = [round(datetime.datetime.strptime(date, "%Y-%m-%d %H:%M:%S").timestamp() * 1000 + 3600000 * 9) for date in
+              datesV]
+    print(f"opcua datesV: {datesV}")
+
+    with OpcUaClient(serverUrl) as client:
+        assert (client._client.uaclient._uasocket.timeout == 15)
+        datesAD_X, datesAD_Y, datesAD_Z, X_pe, Y_pe, Z_pe = ([] for i in range(6))
+
+        # acquire model data
+        modelDictX = DataAcquisition.get_anomaly_model_parameters(
+            client=client,
+            macId=macId,
+            starttime=starttime,
+            endtime=endtime,
+            axis='X'
+        )
+        if len(list(modelDictX.keys())) > 1:
+            print("There are more than one AI models for X")
+        if len(list(modelDictX.keys())) > 0:
+            model = list(modelDictX.keys())[-1]
+            datesAD_X = modelDictX[model]["raw"][1]
+            datesAD_X = [round(datetime.datetime.strptime(date, '%Y-%m-%d %H:%M:%S').timestamp() * 1000 + 3600000 * 9)
+                         for date in datesAD_X]
+            X_pe = modelDictX[model]["raw"][0]
+
+        modelDictY = DataAcquisition.get_anomaly_model_parameters(
+            client=client,
+            macId=macId,
+            starttime=starttime,
+            endtime=endtime,
+            axis='Y'
+        )
+        if len(list(modelDictY.keys())) > 1:
+            print("There are more than one AI models for Y")
+        if len(list(modelDictY.keys())) > 0:
+            model = list(modelDictY.keys())[-1]
+            datesAD_Y = modelDictY[model]["raw"][1]
+            for i in range(len(datesAD_Y)):
+                datesAD_Y[i] = round(
+                    datetime.datetime.strptime(datesAD_Y[i], '%Y-%m-%d %H:%M:%S').timestamp() * 1000 + 3600000 * 9)
+            Y_pe = modelDictY[model]["raw"][0]
+
+        modelDictZ = DataAcquisition.get_anomaly_model_parameters(
+            client=client,
+            macId=macId,
+            starttime=starttime,
+            endtime=endtime,
+            axis='Z'
+        )
+        if len(list(modelDictZ.keys())) > 1:
+            print("There are more than one AI models for Z")
+        if len(list(modelDictZ.keys())) > 0:
+            model = list(modelDictZ.keys())[-1]
+            datesAD_Z = modelDictZ[model]["raw"][1]
+            for i in range(len(datesAD_Z)):
+                datesAD_Z[i] = round(
+                    datetime.datetime.strptime(datesAD_Z[i], '%Y-%m-%d %H:%M:%S').timestamp() * 1000 + 3600000 * 9)
+            Z_pe = modelDictZ[model]["raw"][0]
+
+    time_list = list(chain(dates, datesT, datesV, datesAD_X, datesAD_Y, datesAD_Z))
+
+    # 10개 리스트 초기화
+    Xrms_list, Yrms_list, Zrms_list, Xkurt_list, Ykurt_list, Zkurt_list, Temp_list, Voltage_list, X_AD, Y_AD, Z_AD = \
+        ([] for i in range(11))
+
+    for i in range(len(dates)):
+        # X axis
+        if axes[i] == 0:
+            Xrms_list.append(rms(data[i]))
+            # print(f"Xrms: {Xrms_list}")
+            Xkurt_list.append(stats.kurtosis(data[i]))
+            Yrms_list.append(None)
+            Ykurt_list.append(None)
+            Zrms_list.append(None)
+            Zkurt_list.append(None)
+            Temp_list.append(None)
+            Voltage_list.append(None)
+            X_AD.append(None)
+            Y_AD.append(None)
+            Z_AD.append(None)
+
+        # Y axis
+        elif axes[i] == 1:
+            Xrms_list.append(None)
+            Xkurt_list.append(None)
+            Yrms_list.append(rms(data[i]))
+            Ykurt_list.append(stats.kurtosis(data[i]))
+            Zrms_list.append(None)
+            Zkurt_list.append(None)
+            Temp_list.append(None)
+            Voltage_list.append(None)
+            X_AD.append(None)
+            Y_AD.append(None)
+            Z_AD.append(None)
+
+        # Z axis
+        elif axes[i] == 2:
+            Xrms_list.append(None)
+            Xkurt_list.append(None)
+            Yrms_list.append(None)
+            Ykurt_list.append(None)
+            Zrms_list.append(rms(data[i]))
+            Zkurt_list.append(stats.kurtosis(data[i]))
+            Temp_list.append(None)
+            Voltage_list.append(None)
+            X_AD.append(None)
+            Y_AD.append(None)
+            Z_AD.append(None)
+
+        else:
+            print("Axes not in X, Y, Z")
+
+    for i in range(len(datesT)):
+        Xrms_list.append(None)
+        Xkurt_list.append(None)
+        Yrms_list.append(None)
+        Ykurt_list.append(None)
+        Zrms_list.append(None)
+        Zkurt_list.append(None)
+        Temp_list.append(temperatures[i])
+        Voltage_list.append(None)
+        X_AD.append(None)
+        Y_AD.append(None)
+        Z_AD.append(None)
+
+    for i in range(len(datesV)):
+        Xrms_list.append(None)
+        Xkurt_list.append(None)
+        Yrms_list.append(None)
+        Ykurt_list.append(None)
+        Zrms_list.append(None)
+        Zkurt_list.append(None)
+        Temp_list.append(None)
+        Voltage_list.append(batteryVoltage[i])
+        X_AD.append(None)
+        Y_AD.append(None)
+        Z_AD.append(None)
+
+    xlen = len(datesAD_X)
+    ylen = len(datesAD_Y)
+    zlen = len(datesAD_Z)
+
+    Xrms_list.extend([None] * (xlen + ylen + zlen))
+    Xkurt_list.extend([None] * (xlen + ylen + zlen))
+    Yrms_list.extend([None] * (xlen + ylen + zlen))
+    Ykurt_list.extend([None] * (xlen + ylen + zlen))
+    Zrms_list.extend([None] * (xlen + ylen + zlen))
+    Zkurt_list.extend([None] * (xlen + ylen + zlen))
+    Temp_list.extend([None] * (xlen + ylen + zlen))
+    Voltage_list.extend([None] * (xlen + ylen + zlen))
+
+    X_AD.extend(X_pe)
+    X_AD.extend([None] * (ylen + zlen))
+
+    Y_AD.extend([None] * (xlen))
+    Y_AD.extend(Y_pe)
+    Y_AD.extend([None] * (zlen))
+
+    Z_AD.extend([None] * (xlen + ylen))
+    Z_AD.extend(Z_pe)
+
+    try:
+        data2 = [{"serviceId": "76", "deviceId": servName, "timestamp": d,
+                  "contents": {"XRms": x, "YRms": y, "ZRms": z, "gKurtX": kx, "gKurtY": ky, "gKurtZ": kz,
+                               "XaiPredError": adX, "YaiPredError": adY, "ZaiPredError": adZ, "BoardTemperature": t,
+                               "BatteryState": v}}
+                 for (d, x, y, z, kx, ky, kz, adX, adY, adZ, t, v) in list(
+                zip(time_list, Xrms_list, Yrms_list, Zrms_list, Xkurt_list, Ykurt_list, Zkurt_list, X_AD, Y_AD, Z_AD,
+                    Temp_list, Voltage_list))]
+
+        data_list = []
+        json_results = []
+        x_rms, y_rms, z_rms, x_kurt, y_kurt, z_kurt, x_pred_error, y_pred_error, z_pred_error, board_temperature, battery_state = [], [], [], [], [], [], [], [], [], [], []
+
+        for i in range(len(data2)):
+            data = [data2[i]['contents']]
+            json_results.append(data)
+
+            # data_list.append(data)
+
+        print(f'result length : {len(json_results)}')
+
+        # print(json.dumps(data2, indent=4))
+        # print(json.dumps(data_list, indent=4))
+
+        # data_list.append(data2)
+        print("Done dumping data")
+        j = 0
+        for i in range(len(json_results)):
+            x_rms.append(json_results[i][j]['XRms'])
+            y_rms.append(json_results[i][j]['YRms'])
+            z_rms.append(json_results[i][j]['ZRms'])
+            x_kurt.append(json_results[i][j]['gKurtX'])
+            y_kurt.append(json_results[i][j]['gKurtY'])
+            z_kurt.append(json_results[i][j]['gKurtZ'])
+            x_pred_error.append(json_results[i][j]['XaiPredError'])
+            y_pred_error.append(json_results[i][j]['YaiPredError'])
+            z_pred_error.append(json_results[i][j]['ZaiPredError'])
+            board_temperature.append(json_results[i][j]['BoardTemperature'])
+            battery_state.append(json_results[i][j]['BatteryState'])
+            # if i == 9:
+            #     break
+
+        contents = {
+            'RMS': {'X': x_rms, 'Y': y_rms, 'Z': z_rms},
+            'kurtosis': {'X': x_kurt, 'Y': y_kurt, 'Z': z_kurt},
+            'predict_error': {'X': x_pred_error, 'Y': y_pred_error, 'Z': z_pred_error},
+            'board_temperature': {'board_temperature': board_temperature},
+            'battery_state': {'battery_state': battery_state}
+        }
+
+        end_proc = time.time() - start_proc
+        print(f"opc-ua process time : {end_proc}")
+        print(f"opcua x_rms : {x_rms}")
+
+        return JsonResponse({'contents': contents}, status=201)
+        # return JsonResponse(data2[0], status=201)
+
+    except ValueError:
         print("Error in creating dictionary objects")
+        return JsonResponse({'contents': 'value_error'}, status=201)
 
-    data_list = []
-    for i in range(len(data2)):
-        data = json.dumps(data2[i])
-        data_list.append(data)
-
-    print(json.dumps(data2, indent=4))
-    # data_list.append(data2)
-    print("Done dumping data")
-
-    # # CONNECTION_STR = "Endpoint=sb://reshenietest2.servicebus.windows.net/;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=aNo/hnefeXUKS6ei/VeOcFewKPYZ49MwSLMpH59Yk6M="
-    # CONNECTION_STR = "Endpoint=sb://sktiotcomservicebus01prd.servicebus.windows.net/;SharedAccessKeyName=reshenie;SharedAccessKey=LNbyO1dtSkYN2j6t1kwfh8Idn0IrGTNu6c1iczUPg5Q=;EntityPath=reshenie-telemetry-queue"  # "<NAMESPACE CONNECTION STRING>"
-    # # QUEUE_NAME = "reshenietest2"
-    # QUEUE_NAME = "reshenie-telemetry-queue"  # "<QUEUE NAME>"
-    #
-    # Sending message to skt
-    # servicebus_client = ServiceBusClient.from_connection_string(conn_str=CONNECTION_STR, logging_enable=True)
-    #
-    # with servicebus_client:
-    #     # get a Queue Sender object to send messages to the queue
-    #     sender = servicebus_client.get_queue_sender(queue_name=QUEUE_NAME)
-    #     with sender:
-    #         send_a_list_of_messages(sender, tr_data=data_list)
-    #
-    # print("Done sending data")
-    #
-    # with servicebus_client:
-    #     receiver = servicebus_client.get_queue_receiver(queue_name=QUEUE_NAME)
-    #     with receiver:
-    #         send_a_list_of_messages(receiver, tr_data=data_list)
-    #         for msg in receiver:
-    #             print("Received: " + str(msg))
-    #             # complete the message so that the message is removed from the queue
-    #             receiver.complete_message(msg)
-
-    # with open(
-    #         'C:/Users/user/Google Drive(reshenie.work@gmail.com)/Dashboard/dashboard/Reshenie_Old_wirevibsensor/SKT2_reshenie_Pump_right_vib_data.json',
-    #         'w') as json_file:
-    #     json.dump(data2, json_file, indent=4)
-    #     # data_list.append(data2)
-    #     print("Done dumping data")
-
-
-if __name__ == "__main__":
-    main()
-    schedule.every(60).minutes.do(main)
-
-    while 1:
-        schedule.run_pending()
-        time.sleep(1)
+# if __name__ == "__main__":
+#     main()
+# schedule.every(60).minutes.do(main)
+#
+# while 1:
+#     schedule.run_pending()
+#     time.sleep(1)

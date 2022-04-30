@@ -46,6 +46,8 @@
     {#                    <li> {{ sensor.sensor_mac }}</li>#}
                     <li> <a href="{% url 'show' sensor.sensor_tag %}">{{ sensor.sensor_tag }}</a></li>
                     <li class=""><a href="{% url 'current' sensor.sensor_tag %}" class="">현황판</a></li>
+                    <li class=""><a href="{% url 'opcua' sensor.sensor_tag %}" class="">OPC-UA 테스트</a></li>
+                    <li class=""><a href="{% url 'speed' sensor.sensor_tag %}" class="">속도 테스트</a></li>
                 {% endfor %}
             {% else %}
                 <li class=""><a href="/" class="">등록된 센서가 없습니다.</a></li>
