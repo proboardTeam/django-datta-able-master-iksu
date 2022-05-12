@@ -136,14 +136,21 @@ def index(request):
                                 'XYZBorderColor': [],
                                 'my_board_temperature': []}
 
-                    # html_template = loader.get_template('home/index.html')
-                    #
-                    # return HttpResponse(html_template.render(contents, request))
+                    html_template = loader.get_template('home/index.html')
 
-                    return render(request, 'home/index.html', {'contents': contents})
+                    return HttpResponse(html_template.render(contents, request))
 
             except CompanyProfile.DoesNotExist or Machine.DoesNotExist or Sensor.DoesNotExist or OperationalError:
-                pass
+                html_template = loader.get_template('home/index.html')
+                contents = {'segment': 'index', 'username': username, 'company_name': [],
+                            'machine_names': [], 'sensor_tags': [],
+                            'BarPlot_XYZ_RMS_Values': [],
+                            'BarPlot_XYZ_Kurtosis_Values': [],
+                            'BarPlot_XYZ_Time': [],
+                            'XYZBackgroundColor': [],
+                            'XYZBorderColor': [],
+                            'my_board_temperature': []}
+                return HttpResponse(html_template.render(contents, request))
 
     except KeyError:
         views.login_view(request)
