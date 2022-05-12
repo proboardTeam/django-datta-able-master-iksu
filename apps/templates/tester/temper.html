@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <style>
+        *{
+            margin:0; padding:0; box-sizing:border-box; 
+        }
+        ul, ol, dl {
+            list-style:none; 
+        }
+        html {
+            font-family:Tahoma, sans-serif; 
+            font-size:16px; 
+        }
+        hr {
+            margin:30px; 
+        }
+        #wrap {
+            width:100%; text-align:center; 
+        }
+        #controller {
+            width:600px; height:70px; margin:0 auto; padding:20px; 
+            border-radius:10px; border:2px solid #000000; box-shadow:0px 3px 3px 0px #5f5f5f; 
+        }
+        input[id^=temps_gage]:not(:first-child) {
+            margin-left:10px; 
+        }
+        input[id^=temps_gage]:checked + label {
+            color:#FF0000; text-decoration:overline;
+        }
+        input[id^=temps_gage] + label {
+            margin-left:5px; font-weight:bold; 
+        }
+    </style>
+</head>
+<body>
+    <div id="wrap">
+        <hr/>
+        <svg id="temps" data-name="temps" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="100" viewBox="0 0 220 515">
+            <defs>
+                <style>
+                    .temps_outer {
+                        stroke:#000; stroke-width:20px; stroke-linecap:round; stroke-linejoin:round; 
+                        fill:none;
+                    }
+                    .temps_grad {
+                        stroke:#000; stroke-width:20px; stroke-linecap:round; stroke-linejoin:round; 
+                        fill:none; 
+                    }
+                    .temps_gage {
+                        stroke:#a3000e; stroke-width:5px; stroke-linecap:round; stroke-linejoin:round; 
+                        fill:#fc0b0b; fill:url(#linear-gradient); fill-rule:evenodd;
+                    }
+                    .temps_gage_circle {
+                        stroke:#a3000e; stroke-width:5px; stroke-linecap:round; stroke-linejoin:round; 
+                        fill:#fc0b0b; fill:url(#linear-gradient); fill-rule:evenodd;
+                    }
+                    .off {
+                        visibility:hidden;
+                    }
+                    .on {
+                        visibility:visible;
+                    }
+                </style>
+                <linearGradient id="linear-gradient" x1="159.5" y1="500" x2="159.5" y2="380" gradientUnits="userSpaceOnUse">
+                    <stop offset="0" stop-color="#590000"/>
+                    <stop offset="1" stop-color="red"/>
+                </linearGradient>
+            </defs>
+            <path id="temps_outer" data-name="temps_outer" class="temps_outer" d="M210,405A100,100,0,1,1,53,322.833V60a50,50,0,0,1,50-50h13a50,50,0,0,1,50,50V322.14A99.9,99.9,0,0,1,210,405Z"/>
+            <path id="temps_grad" data-name="temps_grad" class="temps_grad" d="M150,300v-1h14v1h-14Z m0-60v-1h14v1h-14Z m0-60v-1h14v1h-14Z m0-60v-1h14v1h-14Z m0-60v-1h14v1h-14Z"/>
+            <path id="temps_gage" data-name="temps_gage" class="temps_gage off" d="M166,405.5a55.5,55.5,0,1,1-73.921-52.365 C92.029,352.6, 92,352.052, 92,351.5 L92.0,  360  a17.5,17.5,0,0,1,35,0 L127,351.5 c0,0.331-.011.659-0.029,0.985A55.525,55.525,0,0,1,166,405.5Z"/>
+            <circle id="temps_gage_circle" data-name="temps_gage_circle" class="temps_gage_circle" cx="110.5" cy="405.6" r="55.5" />
+        </svg>
+    
+        <hr/>
+    
+        <div id="controller">
+            <form id="form">
+                <input type="radio" id="temps_gage0" name="gage[]" value="0" onclick="temps_measure(this)" checked /><label for="temps_gage0">0</label>
+                <input type="radio" id="temps_gage20" name="gage[]" value="20" onclick="temps_measure(this)" /><label for="temps_gage20">20</label>
+                <input type="radio" id="temps_gage40" name="gage[]" value="40" onclick="temps_measure(this)" /><label for="temps_gage40">40</label>
+                <input type="radio" id="temps_gage60" name="gage[]" value="60" onclick="temps_measure(this)" /><label for="temps_gage60">60</label>
+                <input type="radio" id="temps_gage80" name="gage[]" value="80" onclick="temps_measure(this)" /><label for="temps_gage80">80</label>
+                <input type="radio" id="temps_gage100" name="gage[]" value="100" onclick="temps_measure(this)" /><label for="temps_gage100">100</label>
+            </form>
+        </div>
+    
+    </div><!--//wrap-->
+
+
+    <script>
+        //Function : change the Temperature's gage
+        function temps_measure(obj) {
+            //Set values
+            var gage_defalut = 375;
+            var gage_inc = 60;
+            var input_inc = 20;
+            var obj_val = parseInt(obj.value);
+            //Get Obj, Att
+            var temps = document.getElementById("temps");
+            var temps_gage = temps.getElementById("temps_gage");
+            var temps_gage_d = temps_gage.getAttribute("d");
+            var temps_gage_circle = temps.getElementById("temps_gage_circle");
+            
+            //Replace gage Height value
+            var gage_reValue = gage_defalut - (gage_inc * obj_val / input_inc);
+            var temps_gage_d_new = temps_gage_d.replace(temps_gage_d.match(/(?<=\s\s+).*?(?=\s\s)/gs), gage_reValue);
+            temps_gage.setAttribute("d", temps_gage_d_new);
+            
+            //SVG element On & Off
+            temps_gage.classList.remove('off');
+            temps_gage_circle.classList.remove('off');
+            if(obj_val == 0) {
+                temps_gage.classList.add('off');
+            } else {
+                temps_gage_circle.classList.add('off');
+            }
+        }
+    </script>
+</body>
+</html>
