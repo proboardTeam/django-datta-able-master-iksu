@@ -83,47 +83,43 @@ def index(request):
                 # for mac_unit in mac_id:
                 #     print(mac_unit)
 
-                my_rms, my_kurtosis, my_time, flags, start_time, board_temperature = result_json(sensor_tags[0])
-                print(f'board_temperature = {board_temperature}')
-                # print(user_info)
-                # user_tuple = models.UserProfile.objects.values_list('id', 'username')
-                # print(user_tuple)
+                if sensor_tags:
+                    my_rms, my_kurtosis, my_time, flags, start_time, board_temperatures = result_json(sensor_tags[0])
 
-                # if company_info is True:
-                #     print(company_info.get().company_id)
+                    # print(user_info)
+                    # user_tuple = models.UserProfile.objects.values_list('id', 'username')
+                    # print(user_tuple)
 
-                # print(info2)
-                # test = models.UserProfile.objects.get(id=user_id)
-                # print(test)
-                # print(test.id)
-                # print(test.username)
-                # print(test.company)
+                    # if company_info is True:
+                    #     print(company_info.get().company_id)
 
-                x, y, z = 0, 1, 2
-                print(f'my_rms length : {len(my_rms)}, my_time[x] length : {len(my_time[x])}')
+                    # print(info2)
+                    # test = models.UserProfile.objects.get(id=user_id)
+                    # print(test)
+                    # print(test.id)
+                    # print(test.username)
+                    # print(test.company)
 
-                # you can change graph parameters
-                (bar_plot_xyz_time, bar_plot_xyz_rms_values, bar_plot_xyz_kurtosis_values, xyz_background_color,
-                 xyz_border_color) = ShowGraph.xyz_define(
-                    start_time=start_time, x_time=my_time[x], y_time=my_time[y], z_time=my_time[z],
-                    x_rms=my_rms[x], y_rms=my_rms[y], z_rms=my_rms[z],
-                    x_kurtosis=my_kurtosis[x], y_kurtosis=my_kurtosis[y], z_kurtosis=my_kurtosis[z]
-                )
+                    contents = {'segment': 'index', 'username': username, 'company_name': company_name,
+                                'machine_names': machine_names, 'sensor_tags': sensor_tags,
+                                'my_board_temperatures': board_temperatures}
 
-                contents = {'segment': 'index', 'username': username, 'company_name': company_name,
-                            'machine_names': machine_names, 'sensor_tags': sensor_tags,
-                            'BarPlot_XYZ_RMS_Values': bar_plot_xyz_rms_values,
-                            'BarPlot_XYZ_Kurtosis_Values': bar_plot_xyz_kurtosis_values,
-                            'BarPlot_XYZ_Time': bar_plot_xyz_time,
-                            'XYZBackgroundColor': xyz_background_color,
-                            'XYZBorderColor': xyz_border_color,
-                            'my_board_temperature': board_temperature}
+                    # html_template = loader.get_template('home/index.html')
+                    #
+                    # return HttpResponse(html_template.render(contents, request))
 
-                # html_template = loader.get_template('home/index.html')
-                #
-                # return HttpResponse(html_template.render(contents, request))
+                    return render(request, 'home/index.html', {'contents': contents})
 
-                return render(request, 'home/index.html', {'contents': contents})
+                else:
+                    contents = {'segment': 'index', 'username': username, 'company_name': company_name,
+                                'machine_names': machine_names, 'sensor_tags': [],
+                                'my_board_temperatures': []}
+
+                    # html_template = loader.get_template('home/index.html')
+                    #
+                    # return HttpResponse(html_template.render(contents, request))
+
+                    return render(request, 'home/index.html', {'contents': contents})
 
             except CompanyProfile.DoesNotExist or Machine.DoesNotExist or Sensor.DoesNotExist or OperationalError:
                 pass
