@@ -83,8 +83,8 @@ def index(request):
                 # for mac_unit in mac_id:
                 #     print(mac_unit)
 
-                my_rms, my_kurtosis, my_time, flags, start_time, board_temperatures = result_json(sensor_tags[0])
-
+                my_rms, my_kurtosis, my_time, flags, start_time, board_temperature = result_json(sensor_tags[0])
+                print(f'board_temperature = {board_temperature}')
                 # print(user_info)
                 # user_tuple = models.UserProfile.objects.values_list('id', 'username')
                 # print(user_tuple)
@@ -99,9 +99,25 @@ def index(request):
                 # print(test.username)
                 # print(test.company)
 
+                x, y, z = 0, 1, 2
+                print(f'my_rms length : {len(my_rms)}, my_time[x] length : {len(my_time[x])}')
+
+                # you can change graph parameters
+                (bar_plot_xyz_time, bar_plot_xyz_rms_values, bar_plot_xyz_kurtosis_values, xyz_background_color,
+                 xyz_border_color) = ShowGraph.xyz_define(
+                    start_time=start_time, x_time=my_time[x], y_time=my_time[y], z_time=my_time[z],
+                    x_rms=my_rms[x], y_rms=my_rms[y], z_rms=my_rms[z],
+                    x_kurtosis=my_kurtosis[x], y_kurtosis=my_kurtosis[y], z_kurtosis=my_kurtosis[z]
+                )
+
                 contents = {'segment': 'index', 'username': username, 'company_name': company_name,
                             'machine_names': machine_names, 'sensor_tags': sensor_tags,
-                            'my_board_temperatures': board_temperatures}
+                            'BarPlot_XYZ_RMS_Values': bar_plot_xyz_rms_values,
+                            'BarPlot_XYZ_Kurtosis_Values': bar_plot_xyz_kurtosis_values,
+                            'BarPlot_XYZ_Time': bar_plot_xyz_time,
+                            'XYZBackgroundColor': xyz_background_color,
+                            'XYZBorderColor': xyz_border_color,
+                            'my_board_temperature': board_temperature}
 
                 # html_template = loader.get_template('home/index.html')
                 #
@@ -1064,7 +1080,7 @@ def result_json(sensor_tag):
     # print("=====================================================================================")
 
     json_t_datas = []
-    board_temperature = []
+    board_temperature = None
     data_t = [{"serviceId": "76", "deviceId": "reshenie1", "timestamp": dateT,
                "contents": {"XRms": None, "gKurtX": None,
                             "YRms": None, "gKurtY": None,
@@ -1074,7 +1090,7 @@ def result_json(sensor_tag):
     json_t_datas.extend(json.loads(json_results))
 
     for json_data in json_t_datas:
-        board_temperature.append(json_data['contents']['BoradTemperature'])
+        board_temperature = json_data['contents']['BoradTemperature']
 
     return [x_rms_contents, y_rms_contents, z_rms_contents], [x_kurt_contents, y_kurt_contents, z_kurt_contents], \
            [epoch_dates_x_timeline, epoch_dates_y_timeline, epoch_dates_z_timeline], \
@@ -1251,11 +1267,12 @@ class ShowGraph(View):
         # RMS (rms acceleration; rms 가속도 : 일정 시간 동안의 가속도 제곱의 평균의 제곱근
         request.session['sensor_tag'] = kwargs['sensor_tag']
         sensor_tag = request.session.get('sensor_tag')
-        my_rms, my_kurtosis, my_time, flags, start_time, my_board_temperatures = result_json(kwargs['sensor_tag'])
+        my_rms, my_kurtosis, my_time, flags, start_time, my_board_temperature = result_json(kwargs['sensor_tag'])
         start_time_str = datetime.datetime.fromtimestamp(start_time).strftime("%Y년 %m월 %d일 %H시 %M분 %S초")
         print(f'my_rms[x] length : {len(my_rms[x])}, my_time[x] length : {len(my_time[x])}')
         print(f'my_rms[y] length : {len(my_rms[y])}, my_time[y] length : {len(my_time[y])}, my_time : {my_time[y]}')
         print(f'my_rms[z] length : {len(my_rms[z])}, my_time[z] length : {len(my_time[z])}')
+        print(f'my_board_temperature : {my_board_temperature}')
 
         # you can change graph parameters
         (bar_plot_x_rms_values, bar_plot_x_kurtosis_values, bar_plot_x_time,
@@ -1281,7 +1298,7 @@ class ShowGraph(View):
             'BarPlot_Y_Kurtosis_Values': bar_plot_y_kurtosis_values,
             'BarPlot_Z_Kurtosis_Values': bar_plot_z_kurtosis_values,
             'BarPlot_XYZ_Kurtosis_Values': bar_plot_xyz_kurtosis_values,
-            'BarPlot_Board_Temperatures': my_board_temperatures,
+            'BarPlot_Board_Temperature': my_board_temperature,
             'BarPlot_X_Time': bar_plot_x_time,
             'BarPlot_Y_Time': bar_plot_y_time,
             'BarPlot_Z_Time': bar_plot_z_time,

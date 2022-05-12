@@ -185,7 +185,7 @@ class JsonGraph(View):
 
         # RMS (rms acceleration; rms 가속도 : 일정 시간 동안의 가속도 제곱의 평균의 제곱근
         # my_rms, my_kurtosis, my_time, flags, start_time, my_board_temperatures = views.result_json(kwargs['sensor_tag'])
-        my_rms, my_kurtosis, my_time, flags, start_time, my_board_temperatures = views.result_json(request.POST['sensor_tag'])
+        my_rms, my_kurtosis, my_time, flags, start_time, my_board_temperature = views.result_json(request.POST['sensor_tag'])
         start_time_str = datetime.datetime.fromtimestamp(start_time).strftime("%Y년 %m월 %d일 %H시 %M분 %S초")
         print(f'my_rms[x] length : {len(my_rms[x])}, my_time[x] length : {len(my_time[x])}')
         print(f'my_rms[y] length : {len(my_rms[y])}, my_time[y] length : {len(my_time[y])}, my_time : {my_time[y]}')
@@ -215,7 +215,7 @@ class JsonGraph(View):
             'BarPlot_Y_Kurtosis_Values': bar_plot_y_kurtosis_values,
             'BarPlot_Z_Kurtosis_Values': bar_plot_z_kurtosis_values,
             'BarPlot_XYZ_Kurtosis_Values': bar_plot_xyz_kurtosis_values,
-            'BarPlot_Board_Temperatures': my_board_temperatures,
+            'BarPlot_Board_Temperature': my_board_temperature,
             'BarPlot_X_Time': bar_plot_x_time,
             'BarPlot_Y_Time': bar_plot_y_time,
             'BarPlot_Z_Time': bar_plot_z_time,

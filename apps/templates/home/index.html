@@ -14,8 +14,8 @@
 <script src="https://code.highcharts.com/modules/exporting.js"></script>
 <script src="https://code.highcharts.com/modules/export-data.js"></script>
 <script src="https://code.highcharts.com/modules/accessibility.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-
 <style>
     #fixed-wrapper {
         float: right;
@@ -29,7 +29,35 @@
         flex: 0 0 auto;
     }
 
+    #sensors{
+        position: relative;
+        flex-direction: row;
+        flex: 0 0 auto;
+    }
 
+    #sensor_img:nth-child(n), #sensor_graph:nth-child(n){
+        flex-direction: column;
+        flex: 0 0 50%;
+    }
+
+    .fixed-header, .fixed-footer{
+            width: 100%;
+            position: fixed;
+            background: #333;
+            padding: 10px 0;
+            color: #fff;
+            top: 0;
+        }
+        .result_box{
+            padding-top: 50px;
+        }
+        .fixed-footer{
+            bottom: 0;
+        }
+        .container{
+            width: 80%;
+            margin: 0 auto; /* Center the DIV horizontally */
+        }
 </style>
 
 <div class="pcoded-content">
@@ -102,7 +130,7 @@
               </div>
             </div>
           </div>
-          <div class="col-md-6 col-xl-7">
+          <div class="col-md-12 col-xl-12">
             <div class="card card-event">
               <div class="card-header">
                 <h5>Sensor</h5>
@@ -111,14 +139,25 @@
                 <h3 class="f-w-300 d-flex align-items-center m-b-0">
                      여기에 센서 리스트 배치될 예정<br />
                 </h3>
-                <div style="height: 100%; display: flex; justify-content:center" class="row d-flex align-items-center" id="sensor_list">
-                    {% for sensor in contents.sensor_tags %}
-                        <div style="border-radius: 10px;border: 1px solid black; text-align: center;" class="m-1 col-10">
-                            <span style="font-size:100px;" class="material-icons-outlined">sensors</span>
-                            <p>{{ sensor }}</p>
-                            <p>센서가 정상입니다.</p>
+                <div style="height: 100%; justify-content:center" class="row d-flex align-items-center" id="sensor_list">
+                    <div id="sensors" style="display: flex">
+                        <div id="sensor_img">
+                            {% for sensor in contents.sensor_tags %}
+                                <div style="border-radius: 10px; border: 1px solid black; text-align: center;" class="m-1 col-10">
+                                    <span style="font-size:100px;" class="material-icons-outlined">sensors</span>
+                                    <p>{{ sensor }}</p>
+                                    <p>센서가 정상입니다.</p>
+                                </div>
+                            {% endfor %}
                         </div>
-                    {% endfor %}
+                        <div id="sensor_graph">
+                            {% for sensor in contents.sensor_tags %}
+                                <div>
+                                    <canvas id="xyzAxisGraph" style="width: auto; height: auto;"></canvas>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    </div>
                 </div>
                 <div class="col-auto">
                 </div>
@@ -172,30 +211,111 @@
 
 <div>
     <script>
-        const jsonData = JSON.parse(document.getElementById("jsonData").textContent);
-        console.log("jsonData : ", jsonData)
+        const chart_xyz = {
+             type: 'line',
+             data: {
+                 labels: {{ contents.BarPlot_XYZ_Time  | safe }},
+                 datasets: [
+                     {
+                         label: 'Acceleration XYZ 축 rms 값',
+                         backgroundColor: {{ contents.XYZBackgroundColor | safe }},
+                         borderColor: {{ contents.XYZBorderColor | safe }},
+                         data: {{ contents.BarPlot_XYZ_RMS_Values | safe }},
+                         fill: false
+                     }
+                 ]
+             },
+             options: {
+                 scales: {
+                    y: {
+                        ticks: {
+                            beginAtZero: false,
+                            //stepSize: 0.05
+                        },
+                        title: {
+                            display: true,
+                            labelString: 'Acceleration [g]'
+                        }
+                    },
+                    x: {
+                        ticks: {
+                            beginAtZero: true,
+                            //stepSize: 0.5
+                            callback: function (value, index, values) {
+                                const rms_value = chart_xyz['data']['labels'];
+                                let precision = Number((Math.abs(rms_value[index]) * 100).toPrecision(21));
+                                let converter = Math.round(precision) / 100 * Math.sign(rms_value[index]);
+                                // console.log('1 : ' + converter)
 
-        let sensor_tags = []
-        let i = 0
-        {% for sensor in contents.sensor_tags %}
-            sensor = jsonData.sensor_tags[i]
-            sensor_tags.push(sensor)
-            i++;
-        {% endfor %}
-        const sensor_count = sensor_tags.length
-        console.log('센서 개수 : ', sensor_count)
+                                if (60.00 <= converter){
+                                    precision = Number((Math.abs(rms_value[index]) * 100).toPrecision(21));
+                                    converter = Math.round(precision) / 60 * Math.sign(rms_value[index])
+                                   //  console.log('2 : ' + converter)
 
-        const machine_list = document.querySelector('#machine_list')
-        const children = machine_list.querySelectorAll(':scope > div')
-        console.log('children : ', children)
+                                    if (3600.00 <= converter) {
+                                        precision = Number((Math.abs(rms_value[index]) * 100).toPrecision(21));
+                                        converter = Math.round(precision) / 3600 * Math.sign(rms_value[index])
+                                        // console.log('3 : ' + converter)
 
-        {#children[0].style.textAlign = "center"#}
+                                        return '+ ' + Math.round(converter) / 100 * Math.sign(rms_value[index]) + ' 시간';
+                                    }
 
+                                    return '+ ' + Math.round(converter) / 100 * Math.sign(rms_value[index]) + ' 분';
+
+                                }
+
+                                return '+ ' + converter + ' 초';
+                            }
+                        },
+                        title: {
+                            display: true,
+                            labelString: 'Time [s]'
+                        }
+                    }
+                 },
+                 animation: {
+                    duration: 1,
+                    onComplete: function (){
+                        const chartInstance = this.chart, ctx = ctx_xyz;
+                        ctx.font = Chart.helpers.fontString(Chart.defaults.font.size,
+                                                            Chart.defaults.font.style,
+                                                            Chart.defaults.font.family);
+                        ctx.fillStyle = "purple";
+                        ctx.textAlign = "center";
+                        ctx.textBaseline = "bottom";
+                    }
+                }
+             }
+        }
+        const ctx_xyz = document.getElementById('xyzAxisGraph').getContext('2d');
+        window.myLine_xyz = new Chart(ctx_xyz, chart_xyz);
     </script>
     <script>
+        // initialize
+        let X_flag = 0;
+        let Y_flag = 0;
+        let Z_flag = 0;
+        let XYZ_flag = 0;
 
-        {#pdf 미리보기가 뜨는 현상 발생#}
-        const temp = {{ contents.my_board_temperatures | safe }}
+        // asynchronous control
+        async function dataRenderXYZ(XYZRmsData, XYZTimeData){
+
+            const dataObject_dataset = chart_xyz['data']['datasets'][0]['data']
+            const dataObject_time = chart_xyz['data']['labels']
+
+            // queue
+            if (XYZTimeData.length !== 0) {
+                dataObject_dataset.shift()
+                dataObject_time.shift()
+
+                dataObject_dataset.push(XYZRmsData)
+                dataObject_time.push(XYZTimeData)
+            }
+            window.myLine_xyz.update()
+        }
+
+        const temp = {{ contents.my_board_temperature | safe }}
+        console.log("현재 온도 : ", temp)
 
         // 클릭 시 온도 단위 바뀜
         const units = {
@@ -222,7 +342,7 @@
                 } else {
                     config[input.id] = input.value;
                     range[input.id.slice(0, 3)] = config[input.id]; // Update range
-                    return setTemperature(); // Update temperature
+                    return setTemperature(range.value); // Update temperature
                 }
             });
          });
@@ -234,29 +354,65 @@
         unitP.addEventListener("click", () => {
             config.unit = config.unit === "Celsius" ? "Fahrenheit" : "Celsius";
             unitP.innerHTML = config.unit + ' ' + units[config.unit];
-            return setTemperature();
+            return setTemperature(range.value);
          })
 
         // Change temperature
         const range = document.querySelector("input[type='range']");
         const temperature = document.getElementById("temperature");
 
-        range.value = temp[0]
-        print("현재 온도 : ", range.value)
+        {#range.value = temp#}
+        {#인쇄하면(pdf 미리보기)#}
+        {#print("현재 온도 : ", range.value)#}
 
-        function setTemperature() {
-            temperature.style.height = (range.value - config.minTemp) / (config.maxTemp - config.minTemp) * 100 + "%";
-            temperature.dataset.value = range.value + units[config.unit];
-         }
+        async function setTemperature(tempValue) {
+            if (tempValue === undefined){
+                temperature.style.height = (temp - config.minTemp) / (config.maxTemp - config.minTemp) * 100 + "%";
+                temperature.dataset.value = temp + units[config.unit];
+            }else{
+                range.value = tempValue
+                temperature.style.height = (tempValue - config.minTemp) / (config.maxTemp - config.minTemp) * 100 + "%";
+                temperature.dataset.value = tempValue + units[config.unit];
+            }
+        }
 
-        range.addEventListener("input", setTemperature);
+        setTemperature(temp)
+
+        {#function setClickTemperature() {#}
+        {#    temperature.style.height = (range.value - config.minTemp) / (config.maxTemp - config.minTemp) * 100 + "%";#}
+        {#    temperature.dataset.value = range.value + units[config.unit];#}
+        {# }#}
+
+        range.addEventListener("input", () => {
+            return setTemperature(range.value);
+        });
         setTimeout(setTemperature, 1000);
 
-        function Update(datas){
-           range.value = datas
+        async function Update(datas){
+            console.log(datas)
+            await dataRenderXYZ(datas[0], datas[1]);
+            await setTemperature(datas[2])
+        }
+    </script>
+    <script>
+        const jsonData = JSON.parse(document.getElementById("jsonData").textContent);
+        console.log("jsonData : ", jsonData)
 
-           return setTemperature()
-         }
+        let sensor_tags = []
+        let i = 0
+        {% for sensor in contents.sensor_tags %}
+            sensor = jsonData.sensor_tags[i]
+            sensor_tags.push(sensor)
+            i++;
+        {% endfor %}
+        const sensor_count = sensor_tags.length
+        console.log('센서 개수 : ', sensor_count)
+
+        const machine_list = document.querySelector('#machine_list')
+        const children = machine_list.querySelectorAll(':scope > div')
+        console.log('children : ', children)
+
+        {#children[0].style.textAlign = "center"#}
 
     </script>
     <script>
@@ -270,11 +426,13 @@
                     'sensor_tag': jsonData.sensor_tags[0]
                 },
                 error: function() {
-                  {#alert('통신실패!!');#}
+                  alert('통신실패!!');
                 },
                 success: function(data) {
                     const datas = [
-                        data['context'].BarPlot_Board_Temperatures
+                        data['context'].BarPlot_XYZ_RMS_Values,
+                        data['context'].BarPlot_XYZ_Time,
+                        data['context'].BarPlot_Board_Temperature
                     ]
                     console.log(datas)
                     Update(datas)
