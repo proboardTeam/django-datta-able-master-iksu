@@ -83,7 +83,7 @@ def index(request):
                 # for mac_unit in mac_id:
                 #     print(mac_unit)
 
-                if sensor_tags:
+                if company_name == "동광사우" and sensor_tags:
                     my_rms, my_kurtosis, my_time, flags, start_time, board_temperature = result_json(sensor_tags[0])
                     print(f'board_temperature = {board_temperature}')
                     # print(user_info)
