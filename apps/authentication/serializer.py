@@ -12,6 +12,11 @@ class RequestSerializer(serializers.ModelSerializer):
         fields = ('id', 'username', 'email', 'company_fk')
 
     @staticmethod
+    def request_id_check_one(request):
+        info = UserProfile.objects.get(id=request)
+        return info
+
+    @staticmethod
     def request_id_check(request):
         info = UserProfile.objects.filter(id=request)
         return info

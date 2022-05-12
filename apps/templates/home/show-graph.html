@@ -2,6 +2,7 @@
 {% block stylesheets %}{% endblock stylesheets %} {% block content %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     {{ context | json_script:'jsonData' }}
+    {% csrf_token %}
     <script>
         // receive data <server>
         let X_flag = 0;
@@ -419,34 +420,31 @@ const chart_y = {
                 ticks: {
                     beginAtZero: false,
                     //stepSize: 0.5
-                    callback: function (value, index, values) {
-                        const rms_value = chart_y['data']['labels'];
-                        if (index === 0){
-                           return rms_value[index];
-                         }
-                        let precision = Number((Math.abs(rms_value[index]) * 100).toPrecision(21));
-                        let converter = Math.round(precision) / 100 * Math.sign(rms_value[index]);
-                        // console.log('1 : ' + converter)
-
-                        if (60.00 <= converter){
-                            precision = Number((Math.abs(rms_value[index]) * 100).toPrecision(21));
-                            converter = Math.round(precision) / 60 * Math.sign(rms_value[index])
-                            // console.log('2 : ' + converter)
-
-                            if (3600.00 <= converter) {
-                                precision = Number((Math.abs(rms_value[index]) * 100).toPrecision(21));
-                                converter = Math.round(precision) / 3600 * Math.sign(rms_value[index])
-                                // console.log('3 : ' + converter)
-
-                                return '+ ' + Math.round(converter) / 100 * Math.sign(rms_value[index]) + ' 시간';
-                            }
-
-                            return '+ ' + Math.round(converter) / 100 * Math.sign(rms_value[index]) + ' 분';
-
-                        }
-
-                        return '+ ' + converter + ' 초';
-                    }
+                    {#callback: function (value, index, values) {#}
+                    {#    const rms_value = chart_y['data']['labels'];#}
+                    {#    let precision = Number((Math.abs(rms_value[index]) * 100).toPrecision(21));#}
+                    {#    let converter = Math.round(precision) / 100 * Math.sign(rms_value[index]);#}
+                    {#    // console.log('1 : ' + converter)#}
+                    {##}
+                    {#    if (60.00 <= converter){#}
+                    {#        precision = Number((Math.abs(rms_value[index]) * 100).toPrecision(21));#}
+                    {#        converter = Math.round(precision) / 60 * Math.sign(rms_value[index])#}
+                    {#        // console.log('2 : ' + converter)#}
+                    {##}
+                    {#        if (3600.00 <= converter) {#}
+                    {#            precision = Number((Math.abs(rms_value[index]) * 100).toPrecision(21));#}
+                    {#            converter = Math.round(precision) / 3600 * Math.sign(rms_value[index])#}
+                    {#            // console.log('3 : ' + converter)#}
+                    {##}
+                    {#            return '+ ' + Math.round(converter) / 100 * Math.sign(rms_value[index]) + ' 시간';#}
+                    {#        }#}
+                    {##}
+                    {#        return '+ ' + Math.round(converter) / 100 * Math.sign(rms_value[index]) + ' 분';#}
+                    {##}
+                    {#    }#}
+                    {##}
+                    {#    return '+ ' + converter + ' 초';#}
+                    {# } #}
                 },
                 title: {
                     display: true,
@@ -643,37 +641,38 @@ const ctx_xyz = document.getElementById('xyzAxisGraph').getContext('2d');
 window.myLine_xyz = new Chart(ctx_xyz, chart_xyz);
 </script>
 <script>
-{#function ajaxTest(){#}
-{##}
-{#            $.ajax({#}
-{#                type: "POST",#}
-{#                // 403 forbidden 방지#}
-{#                headers: { 'X-CSRFToken': '{{csrf_token}}' },#}
-{#                url: "draw/",#}
-{#                data: {#}
-{#                    'sensor_tag': jsonData.sensor_tag#}
-{#                },#}
-{#                error: function() {#}
-{#                  alert('통신실패!!');#}
-{#                },#}
-{#                success: function(data) {#}
-{##}
-{#                    const datas = [#}
-{#                        data['info'].BarPlot_X_RMS_Values,#}
-{#                        data['info'].BarPlot_X_Time,#}
-{#                        data['info'].BarPlot_Y_RMS_Values,#}
-{#                        data['info'].BarPlot_Y_Time,#}
-{#                        data['info'].BarPlot_Z_RMS_Values,#}
-{#                        data['info'].BarPlot_Z_Time,#}
-{#                        data['info'].BarPlot_XYZ_RMS_Values,#}
-{#                        data['info'].BarPlot_XYZ_Time#}
-{#                    ]#}
-{#                    UpdateWindow(datas)#}
-{#                }#}
-{#            });#}
-{#        }#}
-{#        playAlert = setInterval(function() {#}
-{#            ajaxTest();#}
-{#        }, 60000);#}
+    function ajaxTest(){
+        const jsonData = JSON.parse(document.getElementById("jsonData").textContent);
+        console.log("jsonData : ", jsonData)
+        $.ajax({
+            type: "POST",
+            // 403 forbidden 방지
+            headers: { 'X-CSRFToken': '{{csrf_token}}' },
+            url: "draw/",
+            data: {
+                'sensor_tag': jsonData.sensor_tag
+            },
+            error: function() {
+              alert('통신실패!!');
+            },
+            success: function(data) {
+
+                const datas = [
+                    data['context'].BarPlot_X_RMS_Values,
+                    data['context'].BarPlot_X_Time,
+                    data['context'].BarPlot_Y_RMS_Values,
+                    data['context'].BarPlot_Y_Time,
+                    data['context'].BarPlot_Z_RMS_Values,
+                    data['context'].BarPlot_Z_Time,
+                    data['context'].BarPlot_XYZ_RMS_Values,
+                    data['context'].BarPlot_XYZ_Time
+                ]
+                UpdateWindow(datas)
+            }
+        });
+    }
+    playAlert = setInterval(function() {
+        ajaxTest();
+    }, 60000);
 </script>
 {% endblock content %}

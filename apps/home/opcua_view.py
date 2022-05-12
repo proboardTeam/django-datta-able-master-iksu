@@ -26,6 +26,8 @@ from concurrent.futures import ThreadPoolExecutor
 from apps.home.views import gql_process
 from django.shortcuts import render
 from django import template
+from django.views import View
+import pytz
 
 register = template.Library()
 
@@ -383,6 +385,25 @@ class DataAcquisition(object):
         return (values, dates)
 
     @staticmethod
+    def get_sensor_axis_data(serverUrl, macId, browseName, starttime, endtime, axis):
+        with OpcUaClient(serverUrl) as client:
+            assert (client._client.uaclient._uasocket.timeout == 15)
+
+            sensorNode = DataAcquisition.get_sensor_axis_node(client, macId, browseName, axis)
+
+            DataAcquisition.LOGGER.info(
+                'Browsing {:s}'.format(macId)
+            )
+            (values, dates) = \
+                DataAcquisition.get_endnode_data(
+                    client=client,
+                    endNode=sensorNode,
+                    starttime=starttime,
+                    endtime=endtime
+                )
+        return (values, dates)
+
+    @staticmethod
     def get_sensor_node(client, macId, browseName):
         nsIdx = client.get_namespace_index(
             'http://www.iqunet.com'
@@ -390,6 +411,19 @@ class DataAcquisition(object):
         bpath = [
             ua.QualifiedName(name=macId, namespaceidx=nsIdx),
             ua.QualifiedName(name=browseName, namespaceidx=nsIdx)
+        ]
+        sensorNode = client.objectsNode.get_child(bpath)
+        return sensorNode
+
+    @staticmethod
+    def get_sensor_axis_node(client, macId, browseName, axis):
+        nsIdx = client.get_namespace_index(
+            'http://www.iqunet.com'
+        )  # iQunet namespace index
+        bpath = [
+            ua.QualifiedName(name=macId, namespaceidx=nsIdx),
+            ua.QualifiedName(name=browseName, namespaceidx=nsIdx),
+            ua.QualifiedName(name=axis, namespaceidx=nsIdx)
         ]
         sensorNode = client.objectsNode.get_child(bpath)
         return sensorNode
@@ -515,6 +549,574 @@ class DataAcquisition(object):
         return models
 
 
+def main(sensor_tag):
+    # '25.31.102.59', "ziincheol1",'0d:66:24:8e','84'
+    # servName = sensor.servName
+    # servIP = sensor.servIP
+    # macID = sensor.macID
+    start_proc = time.time()
+
+    servName = "reshenie1"
+    servIP = "25.52.52.52"
+
+    sensor = RequestFactorySerializer.request_sensor_name_check(sensor_tag)
+    macID = sensor.get().sensor_mac
+
+    logging.basicConfig(level=logging.INFO)
+    logging.getLogger("opcua").setLevel(logging.WARNING)
+
+    # serverIP = '25.17.10.130' #SKT2_polytec
+    serverIP = servIP  # SKT1_GPN
+    # serverIP = '25.3.15.233' #BKT_KPI
+
+    # serverIP = sensor.servIP
+    # macId = sensor.macID
+    # deviceId = sensor.servName
+
+    serverUrl = urlparse('opc.tcp://{:s}:4840'.format(serverIP))
+
+    # macId='05:92:6d:a7' #(SKT2) Polytec Pump_Left_vib
+    # macId='66:a0:b7:9d' #(SKT2) Polytec Pump_Left_vib
+    # macId='94:f3:9e:df' #(SKT1) GPN Etching_White
+    macId = macID  # (SKT1) GPN Etching_Black
+    # macId='82:8e:2c:a3' #(BKT) KPI Press_Vib_110Right 
+    # macId='9b:a3:eb:47' #(BKT) KPI Press_Vib_80Left
+
+    # change settings
+    limit = 1000  # limit limits the number of returned measurements
+    # axis = 'Y'  # axis allows to select data from only 1 or multiple axes
+    hpf = 6
+
+    # endtime = datetime.datetime.now() + datetime.timedelta(hours=8)
+    # starttime = endtime - datetime.timedelta(hours=24.5)
+
+    start_time = "2022-04-26T04:21:30.448000+00:00"
+    end_time = "2022-04-26T04:21:31.448000+00:00"
+
+    start_time = pytz.utc.localize(
+        datetime.datetime.strptime(start_time, '%Y-%m-%dT%H:%M:%S.%f+00:00')
+    )
+    end_time = pytz.utc.localize(
+        datetime.datetime.strptime(end_time, '%Y-%m-%dT%H:%M:%S.%f+00:00')
+    )
+
+    print(f"opcua start time : {start_time}")
+    print(f"opcua end time : {end_time}")
+
+    start_time_stamp_str = "2022-04-25T00:00:00"
+    # end_time_stamp_str = "2022-04-20"
+    # start_time_stamp_str = "2022-04-19"
+
+    (values, dates) = DataAcquisition.get_sensor_data(
+        serverUrl=serverUrl,
+        macId=macId,
+        browseName="accelerationPack",
+        starttime=start_time,
+        endtime=end_time
+    )
+
+    # (values_x, dates_x) = DataAcquisition.get_sensor_axis_data(
+    #     serverUrl=serverUrl,
+    #     macId=macId,
+    #     browseName="accelerationPack",
+    #     starttime=start_time,
+    #     endtime=end_time,
+    #     axis='X'
+    # )
+    #
+    # (values_y, dates_y) = DataAcquisition.get_sensor_axis_data(
+    #     serverUrl=serverUrl,
+    #     macId=macId,
+    #     browseName="accelerationPack",
+    #     starttime=start_time,
+    #     endtime=end_time,
+    #     axis='Y'
+    # )
+    #
+    # (values_z, dates_z) = DataAcquisition.get_sensor_axis_data(
+    #     serverUrl=serverUrl,
+    #     macId=macId,
+    #     browseName="accelerationPack",
+    #     starttime=start_time,
+    #     endtime=end_time,
+    #     axis='Z'
+    # )
+
+    # convert vibration data to 'g' units and plot data
+    data = [val[1:-6] for val in values]
+    sampleRates = [val[-6] for val in values]
+    formatRanges = [val[-5] for val in values]
+    axes = [val[-3] for val in values]
+    for i in range(len(formatRanges)):
+        data[i] = [d / 512.0 * formatRanges[i] for d in data[i]]
+        data[i] = HighPassFilter.perform_hpf_filtering(
+            data=data[i],
+            sampleRate=sampleRates[i],
+            hpf=hpf
+        )
+
+    (temperatures, datesT) = DataAcquisition.get_sensor_data(
+        serverUrl=serverUrl,
+        macId=macId,
+        browseName="boardTemperature",  # 3
+        starttime=start_time,
+        endtime=end_time
+    )
+
+    (batteryVoltage, datesV) = DataAcquisition.get_sensor_data(
+        serverUrl=serverUrl,
+        macId=macId,
+        browseName="batteryVoltage",  # 2
+        starttime=start_time,
+        endtime=end_time
+    )
+
+    dates = [round(datetime.datetime.strptime(date, "%Y-%m-%d %H:%M:%S").timestamp() * 1000 + 3600000 * 9) for date in
+             dates]
+    print(f"opcua dates: {dates}")
+
+    # dates_x = [round(datetime.datetime.strptime(date_x, "%Y-%m-%d %H:%M:%S").timestamp()) for date_x in dates_x]
+    # print(f"opcua x dates: {dates_x}")
+    #
+    # dates_y = [round(datetime.datetime.strptime(date_y, "%Y-%m-%d %H:%M:%S").timestamp()) for date_y in dates_y]
+    # print(f"opcua y dates: {dates_y}")
+    #
+    # dates_z = [round(datetime.datetime.strptime(date_z, "%Y-%m-%d %H:%M:%S").timestamp()) for date_z in dates_z]
+    # print(f"opcua z dates: {dates_z}")
+
+    datesT = [round(datetime.datetime.strptime(date, "%Y-%m-%d %H:%M:%S").timestamp() * 1000 + 3600000 * 9) for date in
+              datesT]
+    print(f"opcua datesT: {datesT}")
+
+    datesV = [round(datetime.datetime.strptime(date, "%Y-%m-%d %H:%M:%S").timestamp() * 1000 + 3600000 * 9) for date in
+              datesV]
+    print(f"opcua datesV: {datesV}")
+
+    with OpcUaClient(serverUrl) as client:
+        assert (client._client.uaclient._uasocket.timeout == 15)
+        datesAD_X, datesAD_Y, datesAD_Z, X_pe, Y_pe, Z_pe = ([] for i in range(6))
+
+        # acquire model data
+        modelDictX = DataAcquisition.get_anomaly_model_parameters(
+            client=client,
+            macId=macId,
+            starttime=start_time,
+            endtime=end_time,
+            axis='X'
+        )
+        if len(list(modelDictX.keys())) > 1:
+            print("There are more than one AI models for X")
+        if len(list(modelDictX.keys())) > 0:
+            model = list(modelDictX.keys())[-1]
+            datesAD_X = modelDictX[model]["raw"][1]
+            datesAD_X = [round(datetime.datetime.strptime(date, '%Y-%m-%d %H:%M:%S').timestamp() * 1000 + 3600000 * 9)
+                         for date in datesAD_X]
+            X_pe = modelDictX[model]["raw"][0]
+
+        modelDictY = DataAcquisition.get_anomaly_model_parameters(
+            client=client,
+            macId=macId,
+            starttime=start_time,
+            endtime=end_time,
+            axis='Y'
+        )
+        if len(list(modelDictY.keys())) > 1:
+            print("There are more than one AI models for Y")
+        if len(list(modelDictY.keys())) > 0:
+            model = list(modelDictY.keys())[-1]
+            datesAD_Y = modelDictY[model]["raw"][1]
+            for i in range(len(datesAD_Y)):
+                datesAD_Y[i] = round(
+                    datetime.datetime.strptime(datesAD_Y[i], '%Y-%m-%d %H:%M:%S').timestamp() * 1000 + 3600000 * 9)
+            Y_pe = modelDictY[model]["raw"][0]
+
+        modelDictZ = DataAcquisition.get_anomaly_model_parameters(
+            client=client,
+            macId=macId,
+            starttime=start_time,
+            endtime=end_time,
+            axis='Z'
+        )
+        if len(list(modelDictZ.keys())) > 1:
+            print("There are more than one AI models for Z")
+        if len(list(modelDictZ.keys())) > 0:
+            model = list(modelDictZ.keys())[-1]
+            datesAD_Z = modelDictZ[model]["raw"][1]
+            for i in range(len(datesAD_Z)):
+                datesAD_Z[i] = round(
+                    datetime.datetime.strptime(datesAD_Z[i], '%Y-%m-%d %H:%M:%S').timestamp() * 1000 + 3600000 * 9)
+            Z_pe = modelDictZ[model]["raw"][0]
+
+    time_list = list(chain(dates, datesT, datesV, datesAD_X, datesAD_Y, datesAD_Z))
+
+    # 10개 리스트 초기화
+    Xrms_list, Yrms_list, Zrms_list, Xkurt_list, Ykurt_list, Zkurt_list, Temp_list, Voltage_list, X_AD, Y_AD, Z_AD, tim = \
+        ([] for i in range(11))
+
+    for i in range(len(dates)):
+        # X axis
+        if axes[i] == 0:
+            Xrms_list.append(rms(data[i]))
+            # print(f"Xrms: {Xrms_list}")
+            Xkurt_list.append(stats.kurtosis(data[i]))
+            Yrms_list.append(None)
+            Ykurt_list.append(None)
+            Zrms_list.append(None)
+            Zkurt_list.append(None)
+            Temp_list.append(None)
+            Voltage_list.append(None)
+            X_AD.append(None)
+            Y_AD.append(None)
+            Z_AD.append(None)
+
+        # Y axis
+        elif axes[i] == 1:
+            Xrms_list.append(None)
+            Xkurt_list.append(None)
+            Yrms_list.append(rms(data[i]))
+            Ykurt_list.append(stats.kurtosis(data[i]))
+            Zrms_list.append(None)
+            Zkurt_list.append(None)
+            Temp_list.append(None)
+            Voltage_list.append(None)
+            X_AD.append(None)
+            Y_AD.append(None)
+            Z_AD.append(None)
+
+        # Z axis
+        elif axes[i] == 2:
+            Xrms_list.append(None)
+            Xkurt_list.append(None)
+            Yrms_list.append(None)
+            Ykurt_list.append(None)
+            Zrms_list.append(rms(data[i]))
+            Zkurt_list.append(stats.kurtosis(data[i]))
+            Temp_list.append(None)
+            Voltage_list.append(None)
+            X_AD.append(None)
+            Y_AD.append(None)
+            Z_AD.append(None)
+
+        else:
+            print("Axes not in X, Y, Z")
+
+    for i in range(len(datesT)):
+        Xrms_list.append(None)
+        Xkurt_list.append(None)
+        Yrms_list.append(None)
+        Ykurt_list.append(None)
+        Zrms_list.append(None)
+        Zkurt_list.append(None)
+        Temp_list.append(temperatures[i])
+        Voltage_list.append(None)
+        X_AD.append(None)
+        Y_AD.append(None)
+        Z_AD.append(None)
+
+    for i in range(len(datesV)):
+        Xrms_list.append(None)
+        Xkurt_list.append(None)
+        Yrms_list.append(None)
+        Ykurt_list.append(None)
+        Zrms_list.append(None)
+        Zkurt_list.append(None)
+        Temp_list.append(None)
+        Voltage_list.append(batteryVoltage[i])
+        X_AD.append(None)
+        Y_AD.append(None)
+        Z_AD.append(None)
+
+    xlen = len(datesAD_X)
+    ylen = len(datesAD_Y)
+    zlen = len(datesAD_Z)
+
+    Xrms_list.extend([None] * (xlen + ylen + zlen))
+    Xkurt_list.extend([None] * (xlen + ylen + zlen))
+    Yrms_list.extend([None] * (xlen + ylen + zlen))
+    Ykurt_list.extend([None] * (xlen + ylen + zlen))
+    Zrms_list.extend([None] * (xlen + ylen + zlen))
+    Zkurt_list.extend([None] * (xlen + ylen + zlen))
+    Temp_list.extend([None] * (xlen + ylen + zlen))
+    Voltage_list.extend([None] * (xlen + ylen + zlen))
+
+    X_AD.extend(X_pe)
+    X_AD.extend([None] * (ylen + zlen))
+
+    Y_AD.extend([None] * (xlen))
+    Y_AD.extend(Y_pe)
+    Y_AD.extend([None] * (zlen))
+
+    Z_AD.extend([None] * (xlen + ylen))
+    Z_AD.extend(Z_pe)
+
+    try:
+        data2 = [{"serviceId": "76", "deviceId": servName, "timestamp": d,
+                  "contents": {"XRms": x, "YRms": y, "ZRms": z, "gKurtX": kx, "gKurtY": ky, "gKurtZ": kz,
+                               "XaiPredError": adX, "YaiPredError": adY, "ZaiPredError": adZ, "BoardTemperature": t,
+                               "BatteryState": v}}
+                 for (d, x, y, z, kx, ky, kz, adX, adY, adZ, t, v) in list(
+                zip(time_list, Xrms_list, Yrms_list, Zrms_list, Xkurt_list, Ykurt_list, Zkurt_list, X_AD, Y_AD, Z_AD,
+                    Temp_list, Voltage_list))]
+        date_list = []
+        json_results = []
+        x_rms, y_rms, z_rms, x_kurt, y_kurt, z_kurt, x_pred_error, y_pred_error, z_pred_error, board_temperature, \
+        battery_state = [], [], [], [], [], [], [], [], [], [], []
+
+        for i in range(len(data2)):
+            data = [data2[i]['contents']]
+            json_results.append(data)
+
+            # data_list.append(data)
+
+        print(f'result length : {len(json_results)}')
+
+        # print(json.dumps(data2, indent=4))
+        # print(json.dumps(data_list, indent=4))
+
+        # data_list.append(data2)
+        print("Done dumping data")
+        j = 0
+        for i in range(len(json_results)):
+            date_list.extend(json_results[i][j]['timestamp'])
+            x_rms.extend(json_results[i][j]['XRms'])
+            y_rms.extend(json_results[i][j]['YRms'])
+            z_rms.extend(json_results[i][j]['ZRms'])
+            x_kurt.extend(json_results[i][j]['gKurtX'])
+            y_kurt.extend(json_results[i][j]['gKurtY'])
+            z_kurt.extend(json_results[i][j]['gKurtZ'])
+            x_pred_error.extend(json_results[i][j]['XaiPredError'])
+            y_pred_error.extend(json_results[i][j]['YaiPredError'])
+            z_pred_error.extend(json_results[i][j]['ZaiPredError'])
+            board_temperature.append(json_results[i][j]['BoardTemperature'])
+            battery_state.append(json_results[i][j]['BatteryState'])
+            # if i == 9:
+            #     break
+
+            print(f'timestamp: {date_list}')
+            print(f"opcua x_rms : {x_rms}")
+
+        # contents = {
+        #     'RMS': {'X': x_rms, 'Y': y_rms, 'Z': z_rms},
+        #     'kurtosis': {'X': x_kurt, 'Y': y_kurt, 'Z': z_kurt},
+        #     'predict_error': {'X': x_pred_error, 'Y': y_pred_error, 'Z': z_pred_error},
+        #     'board_temperature': {'board_temperature': board_temperature},
+        #     'battery_state': {'battery_state': battery_state}
+        # }
+
+        base_time = time.mktime(datetime.datetime.strptime(start_time_stamp_str, "%Y-%m-%dT%H:%M:%S").timetuple())
+        print(f"start base time : {base_time}")
+
+        end_proc = time.time() - start_proc
+        print(f"opc-ua process time : {end_proc}")
+
+        # return JsonResponse({'contents': contents}, status=201)
+        return [x_rms, y_rms, z_rms], [x_kurt, y_kurt, z_kurt], board_temperature, base_time
+
+    except ValueError:
+        print("Error in creating dictionary objects")
+        # return JsonResponse({'contents': 'value_error'}, status=201)
+
+
+class ShowGraph(View):
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+
+    @staticmethod
+    def x_define(start, x_time, rms, kurtosis):
+        date_list_x, background_color, border_color = [], [], []
+        # d = datetime.datetime.fromtimestamp(x_time[0]).strftime("%Y년 %m월 %d일 %H시 %M분 %S초")
+        # date_list_x.append(d)
+
+        if x_time:
+            for i in range(len(x_time)):
+                d = datetime.datetime.fromtimestamp(x_time[i]).strftime("%H시 %M분 %S.%f초")
+                # date_list_x.append(x_time[i] - start)
+                date_list_x.append(d)
+
+        else:
+            return [], [], [], background_color, border_color
+
+        print(f'date_list_x: {date_list_x}')
+        bar_plot_x_time = date_list_x
+
+        x_step_size = 0
+        for i in range(len(x_time)):
+            background_color.append('#3e95cd')
+            border_color.append('#3e95cd')
+            x_step_size += 0.5
+
+        return rms, kurtosis, bar_plot_x_time, background_color, border_color
+
+    @staticmethod
+    def y_define(start, y_time, rms, kurtosis):
+        date_list_y, background_color, border_color = [], [], []
+
+        if y_time:
+            for i in range(len(y_time)):
+                # date_list_y.append(y_time[i] - start)
+                d = datetime.datetime.fromtimestamp(y_time[i]).strftime("%H시 %M분 %S.%f초")
+                print(f'converter_time_y: {d}')
+
+                date_list_y.append(d)
+
+        else:
+            return [], [], [], background_color, border_color
+
+        print(f'date_list_y: {date_list_y}')
+        bar_plot_y_rms_values = rms
+        bar_plot_y_kurtosis_values = kurtosis
+        bar_plot_y_time = date_list_y
+
+        for i in range(len(y_time)):
+            background_color.append('#3e95cd')
+            border_color.append('#3e95cd')
+
+        return bar_plot_y_rms_values, bar_plot_y_kurtosis_values, bar_plot_y_time, background_color, border_color
+
+    @staticmethod
+    def z_define(start, z_time, rms, kurtosis):
+        date_list_z, background_color, border_color = [], [], []
+
+        if z_time:
+            for i in range(len(z_time)):
+                # date_list_z.append(z_time[i] - start)
+                d = datetime.datetime.fromtimestamp(z_time[i]).strftime("%H시 %M분 %S.%f초")
+                date_list_z.append(d)
+
+        else:
+            return [], [], [], background_color, border_color
+
+        print(f'date_list_z: {date_list_z}')
+        bar_plot_z_rms_values = rms
+        bar_plot_z_kurtosis_values = kurtosis
+        bar_plot_z_time = date_list_z
+
+        for i in range(len(z_time)):
+            background_color.append('#3e95cd')
+            border_color.append('#3e95cd')
+
+        return bar_plot_z_rms_values, bar_plot_z_kurtosis_values, bar_plot_z_time, background_color, border_color
+
+    @staticmethod
+    def xyz_define(**kwargs):
+        xyz_rms_date_list, xyz_kurtosis_date_list, background_color, border_color = [], [], [], []
+
+        plot_x_rms_pairs = dict(zip(kwargs.get('x_time'), kwargs.get('x_rms')))
+        plot_y_rms_pairs = dict(zip(kwargs.get('y_time'), kwargs.get('y_rms')))
+        plot_z_rms_pairs = dict(zip(kwargs.get('z_time'), kwargs.get('z_rms')))
+
+        plot_x_kurtosis_pairs = dict(zip(kwargs.get('x_time'), kwargs.get('x_kurtosis')))
+        plot_y_kurtosis_pairs = dict(zip(kwargs.get('y_time'), kwargs.get('y_kurtosis')))
+        plot_z_kurtosis_pairs = dict(zip(kwargs.get('z_time'), kwargs.get('z_kurtosis')))
+
+        # dictionary 형태로 update
+        plot_y_rms_pairs.update(plot_x_rms_pairs)
+        plot_z_rms_pairs.update(plot_y_rms_pairs)
+
+        plot_y_kurtosis_pairs.update(plot_x_kurtosis_pairs)
+        plot_z_kurtosis_pairs.update(plot_y_kurtosis_pairs)
+
+        # 최종 결과 기준 key 값으로 정렬
+        xyz_rms_results = dict(sorted(plot_z_rms_pairs.items()))
+        xyz_kurtosis_results = dict(sorted(plot_z_kurtosis_pairs.items()))
+
+        print(f"dictionary result: {xyz_rms_results}")
+
+        xyz_rms_time_list = list(xyz_rms_results.keys())
+        xyz_kurtosis_time_list = list(xyz_kurtosis_results.keys())
+
+        # rms 값은 value 배열에 저장
+        xyz_rms_value_list = list(xyz_rms_results.values())
+        xyz_kurtosis_value_list = list(xyz_kurtosis_results.values())
+
+        # 시간을 빼주고 다른 배열에 저장
+        for i in range(len(xyz_rms_results)):
+            xyz_rms_date_list.append(xyz_rms_time_list[i] - kwargs.get('start_time'))
+
+        for i in range(len(xyz_rms_results)):
+            xyz_kurtosis_date_list.append(xyz_kurtosis_time_list[i] - kwargs.get('start_time'))
+
+        print(f"xyz result time : {xyz_rms_date_list}")
+
+        bar_plot_xyz_rms_values = xyz_rms_value_list
+        bar_plot_xyz_kurtosis_values = xyz_kurtosis_value_list
+        bar_plot_xyz_time = xyz_rms_date_list
+
+        for i in range(len(xyz_rms_time_list)):
+            background_color.append('#3e95cd')
+            border_color.append('#3e95cd')
+
+        return bar_plot_xyz_time, bar_plot_xyz_rms_values, bar_plot_xyz_kurtosis_values, background_color, border_color
+
+    def get(self, request, *args, **kwargs):
+        x, y, z, xyz = 0, 1, 2, 3
+
+        # RMS (rms acceleration; rms 가속도 : 일정 시간 동안의 가속도 제곱의 평균의 제곱근
+        my_rms, my_kurtosis, my_board_temperatures, my_time, start_time = main(kwargs['sensor_tag'])
+        plot_temp = []
+        for i in range(len(my_board_temperatures)):
+            plot_temp.extend(my_board_temperatures[i])
+        print(f'plot_temp = {plot_temp}')
+
+        start_time_str = datetime.datetime.fromtimestamp(start_time).strftime("%Y년 %m월 %d일 %H시 %M분 %S초")
+        print(f'my_rms[x] length : {len(my_rms[x])}, my_time[x] length : {len(my_time[x])}')
+        print(f'my_rms[y] length : {len(my_rms[y])}, my_time[y] length : {len(my_time[y])}, my_time : {my_time[y]}')
+        print(f'my_rms[z] length : {len(my_rms[z])}, my_time[z] length : {len(my_time[z])}')
+
+        # you can change graph parameters
+        (bar_plot_x_rms_values, bar_plot_x_kurtosis_values, bar_plot_x_time,
+         x_background_color, x_border_color) = self.x_define(start_time, my_time[x], my_rms[x],
+                                                             my_kurtosis[x])
+        (bar_plot_y_rms_values, bar_plot_y_kurtosis_values, bar_plot_y_time,
+         y_background_color, y_border_color) = self.y_define(start_time, my_time[y], my_rms[y],
+                                                             my_kurtosis[y])
+        (bar_plot_z_rms_values, bar_plot_z_kurtosis_values, bar_plot_z_time,
+         z_background_color, z_border_color) = self.z_define(start_time, my_time[z], my_rms[z],
+                                                             my_kurtosis[z])
+        (bar_plot_xyz_time, bar_plot_xyz_rms_values, bar_plot_xyz_kurtosis_values,
+         xyz_background_color, xyz_border_color) = self.xyz_define(
+            start_time=start_time,
+            x_time=my_time[x], y_time=my_time[y], z_time=my_time[z],
+            x_rms=my_rms[x], y_rms=my_rms[y], z_rms=my_rms[z],
+            x_kurtosis=my_kurtosis[x], y_kurtosis=my_kurtosis[y], z_kurtosis=my_kurtosis[z])
+
+        context = {
+            'Measurement_Start_Time': start_time_str,
+            'BarPlot_X_RMS_Values': bar_plot_x_rms_values,
+            'BarPlot_Y_RMS_Values': bar_plot_y_rms_values,
+            'BarPlot_Z_RMS_Values': bar_plot_z_rms_values,
+            'BarPlot_XYZ_RMS_Values': bar_plot_xyz_rms_values,
+            'BarPlot_X_Kurtosis_Values': bar_plot_x_kurtosis_values,
+            'BarPlot_Y_Kurtosis_Values': bar_plot_y_kurtosis_values,
+            'BarPlot_Z_Kurtosis_Values': bar_plot_z_kurtosis_values,
+            'BarPlot_XYZ_Kurtosis_Values': bar_plot_xyz_kurtosis_values,
+            'BarPlot_Board_Temperatures': plot_temp,
+            'BarPlot_X_Time': bar_plot_x_time,
+            'BarPlot_Y_Time': bar_plot_y_time,
+            'BarPlot_Z_Time': bar_plot_z_time,
+            'BarPlot_XYZ_Time': bar_plot_xyz_time,
+            'XBackgroundColor': x_background_color,
+            'XBorderColor': x_border_color,
+            'YBackgroundColor': y_background_color,
+            'YBorderColor': y_border_color,
+            'ZBackgroundColor': z_background_color,
+            'ZBorderColor': z_border_color,
+            'XYZBackgroundColor': xyz_background_color,
+            'XYZBorderColor': xyz_border_color,
+        }
+
+        # schedule.every(60).seconds.do(result_json)
+
+        # while request:
+        #     schedule.run_pending()
+        #     time.sleep(1)
+
+        return render(request, 'home/show-graph.html', {'context': context})
+
+
+
+
 def opcua_process(sensor_tag):
     time.sleep(1)
 
@@ -524,7 +1126,7 @@ def opcua_process(sensor_tag):
     # macID = sensor.macID
     start_proc = time.time()
 
-    servName = "reshenie1"
+    servName = "dksw1"
     servIP = "25.52.52.52"
     # servIP = "25.9.7.151"
 
@@ -890,329 +1492,3 @@ def protocol_repeat(sensor_tag):
     }
 
     return context
-
-
-def main(request, sensor_tag):
-    # '25.31.102.59', "ziincheol1",'0d:66:24:8e','84'
-    # servName = sensor.servName
-    # servIP = sensor.servIP
-    # macID = sensor.macID
-    start_proc = time.time()
-
-    servName = "reshenie1"
-    servIP = "25.52.52.52"
-
-    sensor = RequestFactorySerializer.request_sensor_name_check(sensor_tag)
-    macID = sensor.get().sensor_mac
-
-    logging.basicConfig(level=logging.INFO)
-    logging.getLogger("opcua").setLevel(logging.WARNING)
-
-    # serverIP = '25.17.10.130' #SKT2_polytec
-    serverIP = servIP  # SKT1_GPN
-    # serverIP = '25.3.15.233' #BKT_KPI
-
-    # serverIP = sensor.servIP
-    # macId = sensor.macID
-    # deviceId = sensor.servName
-
-    serverUrl = urlparse('opc.tcp://{:s}:4840'.format(serverIP))
-
-    # macId='05:92:6d:a7' #(SKT2) Polytec Pump_Left_vib
-    # macId='66:a0:b7:9d' #(SKT2) Polytec Pump_Left_vib
-    # macId='94:f3:9e:df' #(SKT1) GPN Etching_White
-    macId = macID  # (SKT1) GPN Etching_Black
-    # macId='82:8e:2c:a3' #(BKT) KPI Press_Vib_110Right 
-    # macId='9b:a3:eb:47' #(BKT) KPI Press_Vib_80Left
-
-    # change settings
-    limit = 1000  # limit limits the number of returned measurements
-    # axis = 'Y'  # axis allows to select data from only 1 or multiple axes
-    hpf = 6
-
-    endtime = datetime.datetime.now() + datetime.timedelta(hours=8)
-    starttime = endtime - datetime.timedelta(hours=24.5)
-
-    # endtime = "2022-04-25 23:59:59.999999"
-    # starttime = "2022-04-25 00:00:00.000000"
-
-    print(f"opcua start time : {starttime}")
-    print(f"opcua end time : {endtime}")
-
-    # end_time_stamp_str = "2022-04-20"
-    # start_time_stamp_str = "2022-04-19"
-
-    (values, dates) = DataAcquisition.get_sensor_data(
-        serverUrl=serverUrl,
-        macId=macId,
-        browseName="accelerationPack",
-        starttime=starttime,
-        endtime=endtime
-    )
-
-    # convert vibration data to 'g' units and plot data
-    data = [val[1:-6] for val in values]
-    sampleRates = [val[-6] for val in values]
-    formatRanges = [val[-5] for val in values]
-    axes = [val[-3] for val in values]
-    for i in range(len(formatRanges)):
-        data[i] = [d / 512.0 * formatRanges[i] for d in data[i]]
-        data[i] = HighPassFilter.perform_hpf_filtering(
-            data=data[i],
-            sampleRate=sampleRates[i],
-            hpf=hpf
-        )
-
-    (temperatures, datesT) = DataAcquisition.get_sensor_data(
-        serverUrl=serverUrl,
-        macId=macId,
-        browseName="boardTemperature",  # 3
-        starttime=starttime,
-        endtime=endtime
-    )
-
-    (batteryVoltage, datesV) = DataAcquisition.get_sensor_data(
-        serverUrl=serverUrl,
-        macId=macId,
-        browseName="batteryVoltage",  # 2
-        starttime=starttime,
-        endtime=endtime
-    )
-
-    dates = [round(datetime.datetime.strptime(date, "%Y-%m-%d %H:%M:%S").timestamp() * 1000 + 3600000 * 9) for date in
-             dates]
-    print(f"opcua dates: {dates}")
-
-    datesT = [round(datetime.datetime.strptime(date, "%Y-%m-%d %H:%M:%S").timestamp() * 1000 + 3600000 * 9) for date in
-              datesT]
-    print(f"opcua datesT: {datesT}")
-
-    datesV = [round(datetime.datetime.strptime(date, "%Y-%m-%d %H:%M:%S").timestamp() * 1000 + 3600000 * 9) for date in
-              datesV]
-    print(f"opcua datesV: {datesV}")
-
-    with OpcUaClient(serverUrl) as client:
-        assert (client._client.uaclient._uasocket.timeout == 15)
-        datesAD_X, datesAD_Y, datesAD_Z, X_pe, Y_pe, Z_pe = ([] for i in range(6))
-
-        # acquire model data
-        modelDictX = DataAcquisition.get_anomaly_model_parameters(
-            client=client,
-            macId=macId,
-            starttime=starttime,
-            endtime=endtime,
-            axis='X'
-        )
-        if len(list(modelDictX.keys())) > 1:
-            print("There are more than one AI models for X")
-        if len(list(modelDictX.keys())) > 0:
-            model = list(modelDictX.keys())[-1]
-            datesAD_X = modelDictX[model]["raw"][1]
-            datesAD_X = [round(datetime.datetime.strptime(date, '%Y-%m-%d %H:%M:%S').timestamp() * 1000 + 3600000 * 9)
-                         for date in datesAD_X]
-            X_pe = modelDictX[model]["raw"][0]
-
-        modelDictY = DataAcquisition.get_anomaly_model_parameters(
-            client=client,
-            macId=macId,
-            starttime=starttime,
-            endtime=endtime,
-            axis='Y'
-        )
-        if len(list(modelDictY.keys())) > 1:
-            print("There are more than one AI models for Y")
-        if len(list(modelDictY.keys())) > 0:
-            model = list(modelDictY.keys())[-1]
-            datesAD_Y = modelDictY[model]["raw"][1]
-            for i in range(len(datesAD_Y)):
-                datesAD_Y[i] = round(
-                    datetime.datetime.strptime(datesAD_Y[i], '%Y-%m-%d %H:%M:%S').timestamp() * 1000 + 3600000 * 9)
-            Y_pe = modelDictY[model]["raw"][0]
-
-        modelDictZ = DataAcquisition.get_anomaly_model_parameters(
-            client=client,
-            macId=macId,
-            starttime=starttime,
-            endtime=endtime,
-            axis='Z'
-        )
-        if len(list(modelDictZ.keys())) > 1:
-            print("There are more than one AI models for Z")
-        if len(list(modelDictZ.keys())) > 0:
-            model = list(modelDictZ.keys())[-1]
-            datesAD_Z = modelDictZ[model]["raw"][1]
-            for i in range(len(datesAD_Z)):
-                datesAD_Z[i] = round(
-                    datetime.datetime.strptime(datesAD_Z[i], '%Y-%m-%d %H:%M:%S').timestamp() * 1000 + 3600000 * 9)
-            Z_pe = modelDictZ[model]["raw"][0]
-
-    time_list = list(chain(dates, datesT, datesV, datesAD_X, datesAD_Y, datesAD_Z))
-
-    # 10개 리스트 초기화
-    Xrms_list, Yrms_list, Zrms_list, Xkurt_list, Ykurt_list, Zkurt_list, Temp_list, Voltage_list, X_AD, Y_AD, Z_AD = \
-        ([] for i in range(11))
-
-    for i in range(len(dates)):
-        # X axis
-        if axes[i] == 0:
-            Xrms_list.append(rms(data[i]))
-            # print(f"Xrms: {Xrms_list}")
-            Xkurt_list.append(stats.kurtosis(data[i]))
-            Yrms_list.append(None)
-            Ykurt_list.append(None)
-            Zrms_list.append(None)
-            Zkurt_list.append(None)
-            Temp_list.append(None)
-            Voltage_list.append(None)
-            X_AD.append(None)
-            Y_AD.append(None)
-            Z_AD.append(None)
-
-        # Y axis
-        elif axes[i] == 1:
-            Xrms_list.append(None)
-            Xkurt_list.append(None)
-            Yrms_list.append(rms(data[i]))
-            Ykurt_list.append(stats.kurtosis(data[i]))
-            Zrms_list.append(None)
-            Zkurt_list.append(None)
-            Temp_list.append(None)
-            Voltage_list.append(None)
-            X_AD.append(None)
-            Y_AD.append(None)
-            Z_AD.append(None)
-
-        # Z axis
-        elif axes[i] == 2:
-            Xrms_list.append(None)
-            Xkurt_list.append(None)
-            Yrms_list.append(None)
-            Ykurt_list.append(None)
-            Zrms_list.append(rms(data[i]))
-            Zkurt_list.append(stats.kurtosis(data[i]))
-            Temp_list.append(None)
-            Voltage_list.append(None)
-            X_AD.append(None)
-            Y_AD.append(None)
-            Z_AD.append(None)
-
-        else:
-            print("Axes not in X, Y, Z")
-
-    for i in range(len(datesT)):
-        Xrms_list.append(None)
-        Xkurt_list.append(None)
-        Yrms_list.append(None)
-        Ykurt_list.append(None)
-        Zrms_list.append(None)
-        Zkurt_list.append(None)
-        Temp_list.append(temperatures[i])
-        Voltage_list.append(None)
-        X_AD.append(None)
-        Y_AD.append(None)
-        Z_AD.append(None)
-
-    for i in range(len(datesV)):
-        Xrms_list.append(None)
-        Xkurt_list.append(None)
-        Yrms_list.append(None)
-        Ykurt_list.append(None)
-        Zrms_list.append(None)
-        Zkurt_list.append(None)
-        Temp_list.append(None)
-        Voltage_list.append(batteryVoltage[i])
-        X_AD.append(None)
-        Y_AD.append(None)
-        Z_AD.append(None)
-
-    xlen = len(datesAD_X)
-    ylen = len(datesAD_Y)
-    zlen = len(datesAD_Z)
-
-    Xrms_list.extend([None] * (xlen + ylen + zlen))
-    Xkurt_list.extend([None] * (xlen + ylen + zlen))
-    Yrms_list.extend([None] * (xlen + ylen + zlen))
-    Ykurt_list.extend([None] * (xlen + ylen + zlen))
-    Zrms_list.extend([None] * (xlen + ylen + zlen))
-    Zkurt_list.extend([None] * (xlen + ylen + zlen))
-    Temp_list.extend([None] * (xlen + ylen + zlen))
-    Voltage_list.extend([None] * (xlen + ylen + zlen))
-
-    X_AD.extend(X_pe)
-    X_AD.extend([None] * (ylen + zlen))
-
-    Y_AD.extend([None] * (xlen))
-    Y_AD.extend(Y_pe)
-    Y_AD.extend([None] * (zlen))
-
-    Z_AD.extend([None] * (xlen + ylen))
-    Z_AD.extend(Z_pe)
-
-    try:
-        data2 = [{"serviceId": "76", "deviceId": servName, "timestamp": d,
-                  "contents": {"XRms": x, "YRms": y, "ZRms": z, "gKurtX": kx, "gKurtY": ky, "gKurtZ": kz,
-                               "XaiPredError": adX, "YaiPredError": adY, "ZaiPredError": adZ, "BoardTemperature": t,
-                               "BatteryState": v}}
-                 for (d, x, y, z, kx, ky, kz, adX, adY, adZ, t, v) in list(
-                zip(time_list, Xrms_list, Yrms_list, Zrms_list, Xkurt_list, Ykurt_list, Zkurt_list, X_AD, Y_AD, Z_AD,
-                    Temp_list, Voltage_list))]
-
-        data_list = []
-        json_results = []
-        x_rms, y_rms, z_rms, x_kurt, y_kurt, z_kurt, x_pred_error, y_pred_error, z_pred_error, board_temperature, battery_state = [], [], [], [], [], [], [], [], [], [], []
-
-        for i in range(len(data2)):
-            data = [data2[i]['contents']]
-            json_results.append(data)
-
-            # data_list.append(data)
-
-        print(f'result length : {len(json_results)}')
-
-        # print(json.dumps(data2, indent=4))
-        # print(json.dumps(data_list, indent=4))
-
-        # data_list.append(data2)
-        print("Done dumping data")
-        j = 0
-        for i in range(len(json_results)):
-            x_rms.append(json_results[i][j]['XRms'])
-            y_rms.append(json_results[i][j]['YRms'])
-            z_rms.append(json_results[i][j]['ZRms'])
-            x_kurt.append(json_results[i][j]['gKurtX'])
-            y_kurt.append(json_results[i][j]['gKurtY'])
-            z_kurt.append(json_results[i][j]['gKurtZ'])
-            x_pred_error.append(json_results[i][j]['XaiPredError'])
-            y_pred_error.append(json_results[i][j]['YaiPredError'])
-            z_pred_error.append(json_results[i][j]['ZaiPredError'])
-            board_temperature.append(json_results[i][j]['BoardTemperature'])
-            battery_state.append(json_results[i][j]['BatteryState'])
-            # if i == 9:
-            #     break
-
-        contents = {
-            'RMS': {'X': x_rms, 'Y': y_rms, 'Z': z_rms},
-            'kurtosis': {'X': x_kurt, 'Y': y_kurt, 'Z': z_kurt},
-            'predict_error': {'X': x_pred_error, 'Y': y_pred_error, 'Z': z_pred_error},
-            'board_temperature': {'board_temperature': board_temperature},
-            'battery_state': {'battery_state': battery_state}
-        }
-
-        end_proc = time.time() - start_proc
-        print(f"opc-ua process time : {end_proc}")
-        print(f"opcua x_rms : {x_rms}")
-
-        return JsonResponse({'contents': contents}, status=201)
-        # return JsonResponse(data2[0], status=201)
-
-    except ValueError:
-        print("Error in creating dictionary objects")
-        return JsonResponse({'contents': 'value_error'}, status=201)
-
-# if __name__ == "__main__":
-#     main()
-# schedule.every(60).minutes.do(main)
-#
-# while 1:
-#     schedule.run_pending()
-#     time.sleep(1)

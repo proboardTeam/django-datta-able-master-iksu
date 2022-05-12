@@ -194,11 +194,14 @@ class MachineAdmin(admin.ModelAdmin):
 @admin.register(Sensor)
 class SensorAdmin(admin.ModelAdmin):
     # pass
-    list_display = ('sensor_parent', 'sensor_mac', 'sensor_name',)
+    list_display = ('sensor_parent', 'sensor_mac', 'sensor_name', 'machine_name', 'company_name', )
 
     def formfield_for_foreignkey(self, db_field, request, **kwargs):
         if db_field.name == 'machine_fk':
             return MachineChoiceField(queryset=Machine.objects.all())
+        if db_field.name == 'company_fk':
+            return CompanyChoiceField(queryset=CompanyProfile.objects.all())
+
         return super().formfield_for_foreignkey(db_field, request, **kwargs)
 
     # obj = Sensor
@@ -207,6 +210,25 @@ class SensorAdmin(admin.ModelAdmin):
 
     sensor_name.short_description = "sensor_name"
 
+    def machine_name(self, obj):
+        str_list = []
+        result = Machine.objects.filter(machine_id=obj.machine_fk_id).values_list('machine_name', flat=True)
+        for result_val in result:
+            str_list.append(result_val)
+
+        return str_list
+
+    machine_name.short_description = "machine_name"
+
+    def company_name(self, obj):
+        str_list = []
+        result = CompanyProfile.objects.filter(company_id=obj.company_fk_id).values_list('company_name', flat=True)
+        for result_val in result:
+            str_list.append(result_val)
+
+        return str_list
+
+    company_name.short_description = "company_name"
 
 # admin.site.register(UserProfile, UserAdmin)
 admin.site.unregister(Group)

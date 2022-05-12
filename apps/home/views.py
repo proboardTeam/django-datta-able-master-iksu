@@ -19,6 +19,7 @@ from django.db.utils import OperationalError
 from apps.factory.serializer import RequestFactorySerializer
 from concurrent.futures import ThreadPoolExecutor
 from django.views import View
+from django.core import serializers
 
 # api ---
 import logging
@@ -28,6 +29,8 @@ import datetime
 import json
 import numpy as np
 import math
+
+# 폴더가 한글, 한자 등 영어 외 문자로 계정 폴더 사용 시 주의 : temp 폴더 경로 변경할 것
 import scipy.signal
 from gql import Client, client, gql
 from gql.transport.requests import RequestsHTTPTransport
@@ -46,9 +49,6 @@ serverUrl = urlparse('http://{:s}:8000/graphql'.format(serverIP))
 
 @login_required(login_url="/login/")
 def index(request):
-    company_info = None
-    machine_info = None
-    sensor_info = None
 
     try:
         user_id = request.session.get("userId")
@@ -60,41 +60,57 @@ def index(request):
 
         else:
             user_info = RequestSerializer.request_id_check(user_id)
+            user = RequestSerializer.request_id_check_one(user_id)
+            username = user.username
+            print(f'user name : {user.username}')
 
             try:
-                company_info = RequestFactorySerializer.request_company_id_check(user_info.get().company_fk_id)
-                # print(company_info)
-                machine_info = RequestFactorySerializer.request_machine_id_check(company_info.get().company_id)
-                # print(company_info)
-                sensor_info = RequestFactorySerializer.request_sensor_id_check(machine_info.get().machine_id)
-                # print(company_info)
+                company_info = RequestFactorySerializer.request_company_id_check_one(user_info.get().company_fk_id)
+                print(f'회사명 : {company_info.company_name}')
+                company_name = company_info.company_name
 
+                machine_list = RequestFactorySerializer.request_machine_id_check(company_info.company_id)
+                machine_names = list(machine_list.values_list('machine_name', flat=True).values())
+                machine_names = list(m['machine_name'] for m in machine_names)
+                machine_company_fk = machine_list.values_list('company_fk_id', flat=True)
+                print(f'machine_names : {machine_names}')
+
+                sensor_info = RequestFactorySerializer.request_sensor_all_from_company(machine_company_fk[0])
+                sensor_tags = list(sensor_info.values_list("sensor_tag", flat=True).values())
+                sensor_tags = list(s['sensor_tag'] for s in sensor_tags)
+                print(f'sensor_tags : {sensor_tags}')
                 # mac_id = Sensor.objects.values_list('sensor_mac')
                 # for mac_unit in mac_id:
                 #     print(mac_unit)
 
+                my_rms, my_kurtosis, my_time, flags, start_time, board_temperatures = result_json(sensor_tags[0])
+
+                # print(user_info)
+                # user_tuple = models.UserProfile.objects.values_list('id', 'username')
+                # print(user_tuple)
+
+                # if company_info is True:
+                #     print(company_info.get().company_id)
+
+                # print(info2)
+                # test = models.UserProfile.objects.get(id=user_id)
+                # print(test)
+                # print(test.id)
+                # print(test.username)
+                # print(test.company)
+
+                contents = {'segment': 'index', 'username': username, 'company_name': company_name,
+                            'machine_names': machine_names, 'sensor_tags': sensor_tags,
+                            'my_board_temperatures': board_temperatures}
+
+                # html_template = loader.get_template('home/index.html')
+                #
+                # return HttpResponse(html_template.render(contents, request))
+
+                return render(request, 'home/index.html', {'contents': contents})
+
             except CompanyProfile.DoesNotExist or Machine.DoesNotExist or Sensor.DoesNotExist or OperationalError:
                 pass
-
-            # print(user_info)
-            # user_tuple = models.UserProfile.objects.values_list('id', 'username')
-            # print(user_tuple)
-
-            # if company_info is True:
-            #     print(company_info.get().company_id)
-
-            # print(info2)
-            # test = models.UserProfile.objects.get(id=user_id)
-            # print(test)
-            # print(test.id)
-            # print(test.username)
-            # print(test.company)
-
-            context = {'segment': 'index', 'user_info': user_info, 'company_info': company_info,
-                       'machine_info': machine_info, 'sensor_info': sensor_info}
-            html_template = loader.get_template('home/index.html')
-
-            return HttpResponse(html_template.render(context, request))
 
     except KeyError:
         views.login_view(request)
@@ -960,7 +976,6 @@ def result_json(sensor_tag):
 
     x_rms_contents = []
     x_kurt_contents = []
-    x_board_temperatures = []
 
     for i in range(len(epoch_dates_x)):
         data_x = [{"serviceId": "76", "deviceId": "reshenie1", "timestamp": epoch_dates_x[i],
@@ -979,7 +994,6 @@ def result_json(sensor_tag):
     for json_data in json_x_datas:
         x_rms_contents.append(json_data['contents']['XRms'])
         x_kurt_contents.append(json_data['contents']['gKurtX'])
-        x_board_temperatures.append(json_data['contents']['BoardTemperature'])
 
     # print(f'x_rms_contents: {x_rms_contents}')
     # print(f'x_kurt_contents: {x_kurt_contents}')
@@ -992,7 +1006,6 @@ def result_json(sensor_tag):
     json_y_datas = []
     y_rms_contents = []
     y_kurt_contents = []
-    y_board_temperatures = []
     for i in range(len(epoch_dates_y)):
         data_y = [{"serviceId": "76", "deviceId": "reshenie1", "timestamp": epoch_dates_y[i],
                    "contents": {"XRms": None, "gKurtX": None,
@@ -1010,7 +1023,6 @@ def result_json(sensor_tag):
     for json_data in json_y_datas:
         y_rms_contents.append(json_data['contents']['YRms'])
         y_kurt_contents.append(json_data['contents']['gKurtY'])
-        y_board_temperatures.append(json_data['contents']['BoardTemperature'])
 
     # print(f'y_rms_contents: {y_rms_contents}')
     # print(f'y_kurt_contents: {y_kurt_contents}')
@@ -1023,7 +1035,6 @@ def result_json(sensor_tag):
     json_z_datas = []
     z_rms_contents = []
     z_kurt_contents = []
-    z_board_temperatures = []
     for i in range(len(epoch_dates_z)):
         data_z = [{"serviceId": "76", "deviceId": "reshenie1", "timestamp": epoch_dates_z[i],
                    "contents": {"XRms": None, "gKurtX": None,
@@ -1041,7 +1052,6 @@ def result_json(sensor_tag):
     for json_data in json_z_datas:
         z_rms_contents.append(json_data['contents']['ZRms'])
         z_kurt_contents.append(json_data['contents']['gKurtZ'])
-        z_board_temperatures.append(json_data['contents']['BoardTemperature'])
 
     end_proc = time.time() - start_proc
     print(f"graphql process time : {end_proc}")
@@ -1053,10 +1063,22 @@ def result_json(sensor_tag):
     #
     # print("=====================================================================================")
 
+    json_t_datas = []
+    board_temperature = []
+    data_t = [{"serviceId": "76", "deviceId": "reshenie1", "timestamp": dateT,
+               "contents": {"XRms": None, "gKurtX": None,
+                            "YRms": None, "gKurtY": None,
+                            "ZRms": None, "gKurtZ": None,
+                            "BoradTemperature": temperature}}]
+    json_results = json.dumps(data_t, indent=4)
+    json_t_datas.extend(json.loads(json_results))
+
+    for json_data in json_t_datas:
+        board_temperature.append(json_data['contents']['BoradTemperature'])
+
     return [x_rms_contents, y_rms_contents, z_rms_contents], [x_kurt_contents, y_kurt_contents, z_kurt_contents], \
-           [x_board_temperatures, y_board_temperatures, z_board_temperatures], \
            [epoch_dates_x_timeline, epoch_dates_y_timeline, epoch_dates_z_timeline], \
-           [x_flag, y_flag, z_flag], base_time
+           [x_flag, y_flag, z_flag], base_time, board_temperature
 
     # data2 = [{"serviceId": "76", "deviceId": "reshenie1", "timestamp": dateT,
     #                      "contents": {"XRms": None, "gKurtX": None,
@@ -1096,7 +1118,7 @@ class ShowGraph(View):
         super().__init__(**kwargs)
 
     @staticmethod
-    def x_define(start, x_time, rms, kurtosis, temperature):
+    def x_define(start, x_time, rms, kurtosis):
         date_list_x, background_color, border_color = [], [], []
         # d = datetime.datetime.fromtimestamp(x_time[0]).strftime("%Y년 %m월 %d일 %H시 %M분 %S초")
         # date_list_x.append(d)
@@ -1108,12 +1130,11 @@ class ShowGraph(View):
                 date_list_x.append(d)
 
         else:
-            return [], [], [], [], background_color, border_color
+            return [], [], [], background_color, border_color
 
         print(f'date_list_x: {date_list_x}')
         bar_plot_x_rms_values = rms
         bar_plot_x_kurtosis_values = kurtosis
-        bar_plot_x_board_temperatures = temperature
         bar_plot_x_time = date_list_x
 
         x_step_size = 0
@@ -1122,11 +1143,203 @@ class ShowGraph(View):
             border_color.append('#3e95cd')
             x_step_size += 0.5
 
-        return bar_plot_x_rms_values, bar_plot_x_kurtosis_values, bar_plot_x_board_temperatures, bar_plot_x_time, \
-               background_color, border_color
+        return bar_plot_x_rms_values, bar_plot_x_kurtosis_values, bar_plot_x_time, background_color, border_color
 
     @staticmethod
-    def y_define(start, y_time, rms, kurtosis, temperature):
+    def y_define(start, y_time, rms, kurtosis):
+        date_list_y, background_color, border_color = [], [], []
+
+        if y_time:
+            for i in range(len(y_time)):
+                # date_list_y.append(y_time[i] - start)
+                d = datetime.datetime.fromtimestamp(y_time[i]).strftime("%H시 %M분 %S.%f초")
+                print(f'converter_time_y: {d}')
+                date_list_y.append(d)
+
+        else:
+            return [], [], [], background_color, border_color
+
+        print(f'date_list_y: {date_list_y}')
+        bar_plot_y_rms_values = rms
+        bar_plot_y_kurtosis_values = kurtosis
+        bar_plot_y_time = date_list_y
+
+        for i in range(len(y_time)):
+            background_color.append('#3e95cd')
+            border_color.append('#3e95cd')
+
+        return bar_plot_y_rms_values, bar_plot_y_kurtosis_values, bar_plot_y_time, background_color, border_color
+
+    @staticmethod
+    def z_define(start, z_time, rms, kurtosis):
+        date_list_z, background_color, border_color = [], [], []
+
+        if z_time:
+            for i in range(len(z_time)):
+                # date_list_z.append(z_time[i] - start)
+                d = datetime.datetime.fromtimestamp(z_time[i]).strftime("%H시 %M분 %S.%f초")
+                date_list_z.append(d)
+
+        else:
+            return [], [], [], background_color, border_color
+
+        print(f'date_list_z: {date_list_z}')
+        bar_plot_z_rms_values = rms
+        bar_plot_z_kurtosis_values = kurtosis
+        bar_plot_z_time = date_list_z
+
+        for i in range(len(z_time)):
+            background_color.append('#3e95cd')
+            border_color.append('#3e95cd')
+
+        return bar_plot_z_rms_values, bar_plot_z_kurtosis_values, bar_plot_z_time, background_color, border_color
+
+    @staticmethod
+    def xyz_define(**kwargs):
+        xyz_rms_date_list, xyz_kurtosis_date_list, background_color, border_color = [], [], [], []
+
+        plot_x_rms_pairs = dict(zip(kwargs.get('x_time'), kwargs.get('x_rms')))
+        plot_y_rms_pairs = dict(zip(kwargs.get('y_time'), kwargs.get('y_rms')))
+        plot_z_rms_pairs = dict(zip(kwargs.get('z_time'), kwargs.get('z_rms')))
+
+        plot_x_kurtosis_pairs = dict(zip(kwargs.get('x_time'), kwargs.get('x_kurtosis')))
+        plot_y_kurtosis_pairs = dict(zip(kwargs.get('y_time'), kwargs.get('y_kurtosis')))
+        plot_z_kurtosis_pairs = dict(zip(kwargs.get('z_time'), kwargs.get('z_kurtosis')))
+
+        # dictionary 형태로 update
+        plot_y_rms_pairs.update(plot_x_rms_pairs)
+        plot_z_rms_pairs.update(plot_y_rms_pairs)
+
+        plot_y_kurtosis_pairs.update(plot_x_kurtosis_pairs)
+        plot_z_kurtosis_pairs.update(plot_y_kurtosis_pairs)
+
+        # 최종 결과 기준 key 값으로 정렬
+        xyz_rms_results = dict(sorted(plot_z_rms_pairs.items()))
+        xyz_kurtosis_results = dict(sorted(plot_z_kurtosis_pairs.items()))
+        print(f"dictionary result: {xyz_rms_results}")
+
+        xyz_rms_time_list = list(xyz_rms_results.keys())
+        xyz_kurtosis_time_list = list(xyz_kurtosis_results.keys())
+
+        # rms 값은 value 배열에 저장
+        xyz_rms_value_list = list(xyz_rms_results.values())
+        xyz_kurtosis_value_list = list(xyz_kurtosis_results.values())
+
+        # 시간을 빼주고 다른 배열에 저장
+        for i in range(len(xyz_rms_results)):
+            xyz_rms_date_list.append(xyz_rms_time_list[i] - kwargs.get('start_time'))
+
+        for i in range(len(xyz_rms_results)):
+            xyz_kurtosis_date_list.append(xyz_kurtosis_time_list[i] - kwargs.get('start_time'))
+
+        print(f"xyz result time : {xyz_rms_date_list}")
+
+        bar_plot_xyz_rms_values = xyz_rms_value_list
+        bar_plot_xyz_kurtosis_values = xyz_kurtosis_value_list
+
+        bar_plot_xyz_time = xyz_rms_date_list
+
+        for i in range(len(xyz_rms_time_list)):
+            background_color.append('#3e95cd')
+            border_color.append('#3e95cd')
+
+        return bar_plot_xyz_time, bar_plot_xyz_rms_values, bar_plot_xyz_kurtosis_values, background_color, border_color
+
+    def get(self, request, *args, **kwargs):
+        x, y, z, xyz = 0, 1, 2, 3
+
+        # RMS (rms acceleration; rms 가속도 : 일정 시간 동안의 가속도 제곱의 평균의 제곱근
+        request.session['sensor_tag'] = kwargs['sensor_tag']
+        sensor_tag = request.session.get('sensor_tag')
+        my_rms, my_kurtosis, my_time, flags, start_time, my_board_temperatures = result_json(kwargs['sensor_tag'])
+        start_time_str = datetime.datetime.fromtimestamp(start_time).strftime("%Y년 %m월 %d일 %H시 %M분 %S초")
+        print(f'my_rms[x] length : {len(my_rms[x])}, my_time[x] length : {len(my_time[x])}')
+        print(f'my_rms[y] length : {len(my_rms[y])}, my_time[y] length : {len(my_time[y])}, my_time : {my_time[y]}')
+        print(f'my_rms[z] length : {len(my_rms[z])}, my_time[z] length : {len(my_time[z])}')
+
+        # you can change graph parameters
+        (bar_plot_x_rms_values, bar_plot_x_kurtosis_values, bar_plot_x_time,
+         x_background_color, x_border_color) = self.x_define(start_time, my_time[x], my_rms[x], my_kurtosis[x])
+        (bar_plot_y_rms_values, bar_plot_y_kurtosis_values, bar_plot_y_time,
+         y_background_color, y_border_color) = self.y_define(start_time, my_time[y], my_rms[y], my_kurtosis[y])
+        (bar_plot_z_rms_values, bar_plot_z_kurtosis_values, bar_plot_z_time,
+         z_background_color, z_border_color) = self.z_define(start_time, my_time[z], my_rms[z], my_kurtosis[z])
+        (bar_plot_xyz_time, bar_plot_xyz_rms_values, bar_plot_xyz_kurtosis_values, xyz_background_color,
+         xyz_border_color) = self.xyz_define(
+            start_time=start_time, x_time=my_time[x], y_time=my_time[y], z_time=my_time[z],
+            x_rms=my_rms[x], y_rms=my_rms[y], z_rms=my_rms[z],
+            x_kurtosis=my_kurtosis[x], y_kurtosis=my_kurtosis[y], z_kurtosis=my_kurtosis[z]
+        )
+
+        context = {
+            'Measurement_Start_Time': start_time_str,
+            'BarPlot_X_RMS_Values': bar_plot_x_rms_values,
+            'BarPlot_Y_RMS_Values': bar_plot_y_rms_values,
+            'BarPlot_Z_RMS_Values': bar_plot_z_rms_values,
+            'BarPlot_XYZ_RMS_Values': bar_plot_xyz_rms_values,
+            'BarPlot_X_Kurtosis_Values': bar_plot_x_kurtosis_values,
+            'BarPlot_Y_Kurtosis_Values': bar_plot_y_kurtosis_values,
+            'BarPlot_Z_Kurtosis_Values': bar_plot_z_kurtosis_values,
+            'BarPlot_XYZ_Kurtosis_Values': bar_plot_xyz_kurtosis_values,
+            'BarPlot_Board_Temperatures': my_board_temperatures,
+            'BarPlot_X_Time': bar_plot_x_time,
+            'BarPlot_Y_Time': bar_plot_y_time,
+            'BarPlot_Z_Time': bar_plot_z_time,
+            'BarPlot_XYZ_Time': bar_plot_xyz_time,
+            'XBackgroundColor': x_background_color,
+            'XBorderColor': x_border_color,
+            'YBackgroundColor': y_background_color,
+            'YBorderColor': y_border_color,
+            'ZBackgroundColor': z_background_color,
+            'ZBorderColor': z_border_color,
+            'XYZBackgroundColor': xyz_background_color,
+            'XYZBorderColor': xyz_border_color,
+            'sensor_tag': sensor_tag
+        }
+
+        # schedule.every(60).seconds.do(result_json)
+
+        # while request:
+        #     schedule.run_pending()
+        #     time.sleep(1)
+
+        return render(request, 'home/show-graph.html', {'context': context})
+
+
+class OtherDataGraph(View):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+
+    @staticmethod
+    def x_define(start, x_time, rms, kurtosis):
+        date_list_x, background_color, border_color = [], [], []
+        # d = datetime.datetime.fromtimestamp(x_time[0]).strftime("%Y년 %m월 %d일 %H시 %M분 %S초")
+        # date_list_x.append(d)
+
+        if x_time:
+            for i in range(len(x_time)):
+                d = datetime.datetime.fromtimestamp(x_time[i]).strftime("%H시 %M분 %S.%f초")
+                # date_list_x.append(x_time[i] - start)
+                date_list_x.append(d)
+
+        else:
+            return [], [], [], background_color, border_color
+
+        print(f'date_list_x: {date_list_x}')
+        bar_plot_x_rms_values = rms
+        bar_plot_x_kurtosis_values = kurtosis
+        bar_plot_x_time = date_list_x
+
+        x_step_size = 0
+        for i in range(len(x_time)):
+            background_color.append('#3e95cd')
+            border_color.append('#3e95cd')
+            x_step_size += 0.5
+
+        return bar_plot_x_rms_values, bar_plot_x_kurtosis_values, bar_plot_x_time, background_color, border_color
+
+    @staticmethod
+    def y_define(start, y_time, rms, kurtosis):
         date_list_y, background_color, border_color = [], [], []
 
         if y_time:
@@ -1139,23 +1352,21 @@ class ShowGraph(View):
 
 
         else:
-            return [], [], [], [], background_color, border_color
+            return [], [], [], background_color, border_color
 
         print(f'date_list_y: {date_list_y}')
         bar_plot_y_rms_values = rms
         bar_plot_y_kurtosis_values = kurtosis
-        bar_plot_y_board_temperatures = temperature
         bar_plot_y_time = date_list_y
 
         for i in range(len(y_time)):
             background_color.append('#3e95cd')
             border_color.append('#3e95cd')
 
-        return bar_plot_y_rms_values, bar_plot_y_kurtosis_values, bar_plot_y_board_temperatures, bar_plot_y_time, \
-               background_color, border_color
+        return bar_plot_y_rms_values, bar_plot_y_kurtosis_values, bar_plot_y_time, background_color, border_color
 
     @staticmethod
-    def z_define(start, z_time, rms, kurtosis, temperature):
+    def z_define(start, z_time, rms, kurtosis):
         date_list_z, background_color, border_color = [], [], []
 
         if z_time:
@@ -1165,25 +1376,22 @@ class ShowGraph(View):
                 date_list_z.append(d)
 
         else:
-            return [], [], [], [], background_color, border_color
+            return [], [], [], background_color, border_color
 
         print(f'date_list_z: {date_list_z}')
         bar_plot_z_rms_values = rms
         bar_plot_z_kurtosis_values = kurtosis
-        bar_plot_z_board_temperatures = temperature
         bar_plot_z_time = date_list_z
 
         for i in range(len(z_time)):
             background_color.append('#3e95cd')
             border_color.append('#3e95cd')
 
-        return bar_plot_z_rms_values, bar_plot_z_kurtosis_values, bar_plot_z_board_temperatures, bar_plot_z_time, \
-               background_color, border_color
+        return bar_plot_z_rms_values, bar_plot_z_kurtosis_values, bar_plot_z_time, background_color, border_color
 
     @staticmethod
     def xyz_define(**kwargs):
-        xyz_rms_date_list, xyz_kurtosis_date_list, xyz_temp_date_list, background_color, border_color = \
-            [], [], [], [], []
+        xyz_rms_date_list, xyz_kurtosis_date_list, background_color, border_color = [], [], [], []
 
         plot_x_rms_pairs = dict(zip(kwargs.get('x_time'), kwargs.get('x_rms')))
         plot_y_rms_pairs = dict(zip(kwargs.get('y_time'), kwargs.get('y_rms')))
@@ -1193,10 +1401,6 @@ class ShowGraph(View):
         plot_y_kurtosis_pairs = dict(zip(kwargs.get('y_time'), kwargs.get('y_kurtosis')))
         plot_z_kurtosis_pairs = dict(zip(kwargs.get('z_time'), kwargs.get('z_kurtosis')))
 
-        plot_x_temp_pairs = dict(zip(kwargs.get('x_time'), kwargs.get('x_temp')))
-        plot_y_temp_pairs = dict(zip(kwargs.get('y_time'), kwargs.get('y_temp')))
-        plot_z_temp_pairs = dict(zip(kwargs.get('z_time'), kwargs.get('z_temp')))
-
         # dictionary 형태로 update
         plot_y_rms_pairs.update(plot_x_rms_pairs)
         plot_z_rms_pairs.update(plot_y_rms_pairs)
@@ -1204,24 +1408,17 @@ class ShowGraph(View):
         plot_y_kurtosis_pairs.update(plot_x_kurtosis_pairs)
         plot_z_kurtosis_pairs.update(plot_y_kurtosis_pairs)
 
-        plot_y_temp_pairs.update(plot_x_temp_pairs)
-        plot_z_temp_pairs.update(plot_y_temp_pairs)
-
         # 최종 결과 기준 key 값으로 정렬
         xyz_rms_results = dict(sorted(plot_z_rms_pairs.items()))
         xyz_kurtosis_results = dict(sorted(plot_z_kurtosis_pairs.items()))
-        xyz_temp_results = dict(sorted(plot_z_temp_pairs.items()))
-
         print(f"dictionary result: {xyz_rms_results}")
 
         xyz_rms_time_list = list(xyz_rms_results.keys())
         xyz_kurtosis_time_list = list(xyz_kurtosis_results.keys())
-        xyz_temp_time_list = list(xyz_temp_results.keys())
 
         # rms 값은 value 배열에 저장
         xyz_rms_value_list = list(xyz_rms_results.values())
         xyz_kurtosis_value_list = list(xyz_kurtosis_results.values())
-        xyz_temp_value_list = list(xyz_temp_results.values())
 
         # 시간을 빼주고 다른 배열에 저장
         for i in range(len(xyz_rms_results)):
@@ -1230,14 +1427,10 @@ class ShowGraph(View):
         for i in range(len(xyz_rms_results)):
             xyz_kurtosis_date_list.append(xyz_kurtosis_time_list[i] - kwargs.get('start_time'))
 
-        for i in range(len(xyz_rms_results)):
-            xyz_temp_date_list.append(xyz_temp_time_list[i] - kwargs.get('start_time'))
-
         print(f"xyz result time : {xyz_rms_date_list}")
 
         bar_plot_xyz_rms_values = xyz_rms_value_list
         bar_plot_xyz_kurtosis_values = xyz_kurtosis_value_list
-        bar_plot_xyz_board_temperatures = xyz_temp_value_list
 
         bar_plot_xyz_time = xyz_rms_date_list
 
@@ -1245,40 +1438,31 @@ class ShowGraph(View):
             background_color.append('#3e95cd')
             border_color.append('#3e95cd')
 
-        return bar_plot_xyz_time, bar_plot_xyz_rms_values, bar_plot_xyz_kurtosis_values, \
-               bar_plot_xyz_board_temperatures, background_color, border_color
+        return bar_plot_xyz_time, bar_plot_xyz_rms_values, bar_plot_xyz_kurtosis_values, background_color, border_color
 
     def get(self, request, *args, **kwargs):
         x, y, z, xyz = 0, 1, 2, 3
 
         # RMS (rms acceleration; rms 가속도 : 일정 시간 동안의 가속도 제곱의 평균의 제곱근
-        my_rms, my_kurtosis, my_board_temperatures, my_time, flags, start_time = result_json(kwargs['sensor_tag'])
+        my_rms, my_kurtosis, my_time, flags, start_time, my_board_temperatures = result_json(kwargs['sensor_tag'])
         start_time_str = datetime.datetime.fromtimestamp(start_time).strftime("%Y년 %m월 %d일 %H시 %M분 %S초")
         print(f'my_rms[x] length : {len(my_rms[x])}, my_time[x] length : {len(my_time[x])}')
         print(f'my_rms[y] length : {len(my_rms[y])}, my_time[y] length : {len(my_time[y])}, my_time : {my_time[y]}')
         print(f'my_rms[z] length : {len(my_rms[z])}, my_time[z] length : {len(my_time[z])}')
 
         # you can change graph parameters
-        (bar_plot_x_rms_values, bar_plot_x_kurtosis_values, bar_plot_x_board_temperatures, bar_plot_x_time,
-         x_background_color, x_border_color) = self.x_define(start_time, my_time[x], my_rms[x],
-                                                             my_kurtosis[x], my_board_temperatures[x])
-        (bar_plot_y_rms_values, bar_plot_y_kurtosis_values, bar_plot_y_board_temperatures, bar_plot_y_time,
-         y_background_color, y_border_color) = self.y_define(start_time, my_time[y], my_rms[y],
-                                                             my_kurtosis[y], my_board_temperatures[y])
-        (bar_plot_z_rms_values, bar_plot_z_kurtosis_values, bar_plot_z_board_temperatures, bar_plot_z_time,
-         z_background_color, z_border_color) = self.z_define(start_time, my_time[z], my_rms[z],
-                                                             my_kurtosis[z], my_board_temperatures[z])
-        (bar_plot_xyz_time, bar_plot_xyz_rms_values, bar_plot_xyz_kurtosis_values, bar_plot_xyz_board_temperatures,
-         xyz_background_color, xyz_border_color) = self.xyz_define(
-            start_time=start_time,
-            x_time=my_time[x], y_time=my_time[y],
-            z_time=my_time[z],
+        (bar_plot_x_rms_values, bar_plot_x_kurtosis_values, bar_plot_x_time,
+         x_background_color, x_border_color) = self.x_define(start_time, my_time[x], my_rms[x], my_kurtosis[x])
+        (bar_plot_y_rms_values, bar_plot_y_kurtosis_values, bar_plot_y_time,
+         y_background_color, y_border_color) = self.y_define(start_time, my_time[y], my_rms[y], my_kurtosis[y], )
+        (bar_plot_z_rms_values, bar_plot_z_kurtosis_values, bar_plot_z_time,
+         z_background_color, z_border_color) = self.z_define(start_time, my_time[z], my_rms[z], my_kurtosis[z])
+        (bar_plot_xyz_time, bar_plot_xyz_rms_values, bar_plot_xyz_kurtosis_values, xyz_background_color,
+         xyz_border_color) = self.xyz_define(
+            start_time=start_time, x_time=my_time[x], y_time=my_time[y], z_time=my_time[z],
             x_rms=my_rms[x], y_rms=my_rms[y], z_rms=my_rms[z],
-            x_kurtosis=my_kurtosis[x], y_kurtosis=my_kurtosis[y],
-            z_kurtosis=my_kurtosis[z],
-            x_temp=my_board_temperatures[x],
-            y_temp=my_board_temperatures[y],
-            z_temp=my_board_temperatures[z])
+            x_kurtosis=my_kurtosis[x], y_kurtosis=my_kurtosis[y], z_kurtosis=my_kurtosis[z]
+        )
 
         context = {
             'Measurement_Start_Time': start_time_str,
@@ -1290,10 +1474,7 @@ class ShowGraph(View):
             'BarPlot_Y_Kurtosis_Values': bar_plot_y_kurtosis_values,
             'BarPlot_Z_Kurtosis_Values': bar_plot_z_kurtosis_values,
             'BarPlot_XYZ_Kurtosis_Values': bar_plot_xyz_kurtosis_values,
-            'BarPlot_X_Board_Temperatures': bar_plot_x_board_temperatures,
-            'BarPlot_Y_Board_Temperatures': bar_plot_y_board_temperatures,
-            'BarPlot_Z_Board_Temperatures': bar_plot_z_board_temperatures,
-            'BarPlot_XYZ_Board_Temperatures': bar_plot_xyz_board_temperatures,
+            'BarPlot_Board_Temperatures': my_board_temperatures,
             'BarPlot_X_Time': bar_plot_x_time,
             'BarPlot_Y_Time': bar_plot_y_time,
             'BarPlot_Z_Time': bar_plot_z_time,
@@ -1314,355 +1495,8 @@ class ShowGraph(View):
         #     schedule.run_pending()
         #     time.sleep(1)
 
-        return render(request, 'home/show-graph.html', {'context': context})
+        return render(request, 'home/other-data.html', {'context': context})
 
-
-class JsonGraph(View):
-
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-
-    @staticmethod
-    def x_define(start, x_time, rms, kurtosis, temperature):
-        date_list_x, background_color, border_color = [], [], []
-        # d = datetime.datetime.fromtimestamp(x_time[0]).strftime("%Y년 %m월 %d일 %H시 %M분 %S초")
-        # date_list_x.append(d)
-        if x_time:
-            for i in range(len(x_time)):
-                date_list_x.append(x_time[i] - start)
-
-        else:
-            return [], [], [], [], background_color, border_color
-
-        print(f'date_list_x: {date_list_x}')
-        bar_plot_x_rms_values = rms
-        bar_plot_x_kurtosis_values = kurtosis
-        bar_plot_x_board_temperatures = temperature
-        bar_plot_x_time = date_list_x
-
-        x_step_size = 0
-        for i in range(len(x_time)):
-            background_color.append('#3e95cd')
-            border_color.append('#3e95cd')
-            x_step_size += 0.5
-
-        return bar_plot_x_rms_values, bar_plot_x_kurtosis_values, bar_plot_x_board_temperatures, bar_plot_x_time, \
-               background_color, border_color
-
-    @staticmethod
-    def y_define(start, y_time, rms, kurtosis, temperature):
-        date_list_y, background_color, border_color = [], [], []
-
-        if y_time:
-            for i in range(1, len(y_time)):
-                date_list_y.append(y_time[i] - start)
-
-        else:
-            return [], [], [], [], background_color, border_color
-
-
-        print(f'date_list_y: {date_list_y}')
-        bar_plot_y_rms_values = rms
-        bar_plot_y_kurtosis_values = kurtosis
-        bar_plot_y_board_temperatures = temperature
-        bar_plot_y_time = date_list_y
-
-        for i in range(len(y_time)):
-            background_color.append('#3e95cd')
-            border_color.append('#3e95cd')
-
-        return bar_plot_y_rms_values, bar_plot_y_kurtosis_values, bar_plot_y_board_temperatures, bar_plot_y_time, \
-               background_color, border_color
-
-    @staticmethod
-    def z_define(start, z_time, rms, kurtosis, temperature):
-        date_list_z, background_color, border_color = [], [], []
-
-        if z_time:
-            for i in range(len(z_time)):
-                date_list_z.append(z_time[i] - start)
-
-        else:
-            return [], [], [], [], background_color, border_color
-
-        print(f'date_list_z: {date_list_z}')
-        bar_plot_z_rms_values = rms
-        bar_plot_z_kurtosis_values = kurtosis
-        bar_plot_z_board_temperatures = temperature
-        bar_plot_z_time = date_list_z
-
-        for i in range(len(z_time)):
-            background_color.append('#3e95cd')
-            border_color.append('#3e95cd')
-
-        return bar_plot_z_rms_values, bar_plot_z_kurtosis_values, bar_plot_z_board_temperatures, bar_plot_z_time, \
-               background_color, border_color
-
-    @staticmethod
-    def xyz_define(**kwargs):
-        xyz_rms_date_list, xyz_kurtosis_date_list, xyz_temp_date_list, background_color, border_color = \
-            [], [], [], [], []
-
-        plot_x_rms_pairs = dict(zip(kwargs.get('x_time'), kwargs.get('x_rms')))
-        plot_y_rms_pairs = dict(zip(kwargs.get('y_time'), kwargs.get('y_rms')))
-        plot_z_rms_pairs = dict(zip(kwargs.get('z_time'), kwargs.get('z_rms')))
-
-        plot_x_kurtosis_pairs = dict(zip(kwargs.get('x_time'), kwargs.get('x_kurtosis')))
-        plot_y_kurtosis_pairs = dict(zip(kwargs.get('y_time'), kwargs.get('y_kurtosis')))
-        plot_z_kurtosis_pairs = dict(zip(kwargs.get('z_time'), kwargs.get('z_kurtosis')))
-
-        plot_x_temp_pairs = dict(zip(kwargs.get('x_time'), kwargs.get('x_temp')))
-        plot_y_temp_pairs = dict(zip(kwargs.get('y_time'), kwargs.get('y_temp')))
-        plot_z_temp_pairs = dict(zip(kwargs.get('z_time'), kwargs.get('z_temp')))
-
-        # dictionary 형태로 update
-        plot_y_rms_pairs.update(plot_x_rms_pairs)
-        plot_z_rms_pairs.update(plot_y_rms_pairs)
-
-        plot_y_kurtosis_pairs.update(plot_x_kurtosis_pairs)
-        plot_z_kurtosis_pairs.update(plot_y_kurtosis_pairs)
-
-        plot_y_temp_pairs.update(plot_x_temp_pairs)
-        plot_z_temp_pairs.update(plot_y_temp_pairs)
-
-        # 최종 결과 기준 key 값으로 정렬
-        xyz_rms_results = dict(sorted(plot_z_rms_pairs.items()))
-        xyz_kurtosis_results = dict(sorted(plot_z_kurtosis_pairs.items()))
-        xyz_temp_results = dict(sorted(plot_z_temp_pairs.items()))
-
-        print(f"dictionary result: {xyz_rms_results}")
-
-        xyz_rms_time_list = list(xyz_rms_results.keys())
-        xyz_kurtosis_time_list = list(xyz_kurtosis_results.keys())
-        xyz_temp_time_list = list(xyz_temp_results.keys())
-
-        # rms 값은 value 배열에 저장
-        xyz_rms_value_list = list(xyz_rms_results.values())
-        xyz_kurtosis_value_list = list(xyz_kurtosis_results.values())
-        xyz_temp_value_list = list(xyz_temp_results.values())
-
-        # 시간을 빼주고 다른 배열에 저장
-        for i in range(len(xyz_rms_results)):
-            xyz_rms_date_list.append(xyz_rms_time_list[i] - kwargs.get('start_time'))
-
-        for i in range(len(xyz_rms_results)):
-            xyz_kurtosis_date_list.append(xyz_kurtosis_time_list[i] - kwargs.get('start_time'))
-
-        for i in range(len(xyz_rms_results)):
-            xyz_temp_date_list.append(xyz_temp_time_list[i] - kwargs.get('start_time'))
-
-        print(f"xyz result time : {xyz_rms_date_list}")
-
-        bar_plot_xyz_rms_values = xyz_rms_value_list
-        bar_plot_xyz_kurtosis_values = xyz_kurtosis_value_list
-        bar_plot_xyz_board_temperatures = xyz_temp_value_list
-
-        bar_plot_xyz_time = xyz_rms_date_list
-
-        for i in range(len(xyz_rms_time_list)):
-            background_color.append('#3e95cd')
-            border_color.append('#3e95cd')
-
-        return bar_plot_xyz_time, bar_plot_xyz_rms_values, bar_plot_xyz_kurtosis_values, \
-               bar_plot_xyz_board_temperatures, background_color, border_color
-
-    def post(self, request, *args, **kwargs):
-        x, y, z, xyz = 0, 1, 2, 3
-
-        # RMS (rms acceleration; rms 가속도 : 일정 시간 동안의 가속도 제곱의 평균의 제곱근
-        my_rms, my_kurtosis, my_board_temperatures, my_time, flags, start_time = result_json(kwargs['sensor_tag'])
-        start_time_str = datetime.datetime.fromtimestamp(start_time).strftime("%Y년 %m월 %d일 %H시 %M분 %S초")
-        print(f'my_rms[x] length : {len(my_rms[x])}, my_time[x] length : {len(my_time[x])}')
-
-        # you can change graph parameters
-        (bar_plot_x_rms_values, bar_plot_x_kurtosis_values, bar_plot_x_board_temperatures, bar_plot_x_time,
-         x_background_color, x_border_color) = self.x_define(start_time, my_time[x], my_rms[x],
-                                                             my_kurtosis[x], my_board_temperatures[x])
-        (bar_plot_y_rms_values, bar_plot_y_kurtosis_values, bar_plot_y_board_temperatures, bar_plot_y_time,
-         y_background_color, y_border_color) = self.y_define(start_time, my_time[y], my_rms[y],
-                                                             my_kurtosis[y], my_board_temperatures[y])
-        (bar_plot_z_rms_values, bar_plot_z_kurtosis_values, bar_plot_z_board_temperatures, bar_plot_z_time,
-         z_background_color, z_border_color) = self.z_define(start_time, my_time[z], my_rms[z],
-                                                             my_kurtosis[z], my_board_temperatures[z])
-        (bar_plot_xyz_time, bar_plot_xyz_rms_values, bar_plot_xyz_kurtosis_values, bar_plot_xyz_board_temperatures,
-         xyz_background_color, xyz_border_color) = self.xyz_define(
-            start_time=start_time,
-            x_time=my_time[x], y_time=my_time[y],
-            z_time=my_time[z],
-            x_rms=my_rms[x], y_rms=my_rms[y], z_rms=my_rms[z],
-            x_kurtosis=my_kurtosis[x], y_kurtosis=my_kurtosis[y],
-            z_kurtosis=my_kurtosis[z],
-            x_temp=my_board_temperatures[x],
-            y_temp=my_board_temperatures[y],
-            z_temp=my_board_temperatures[z])
-
-        info = {
-            'Measurement_Start_Time': start_time_str,
-            'BarPlot_X_RMS_Values': bar_plot_x_rms_values,
-            'BarPlot_Y_RMS_Values': bar_plot_y_rms_values,
-            'BarPlot_Z_RMS_Values': bar_plot_z_rms_values,
-            'BarPlot_XYZ_RMS_Values': bar_plot_xyz_rms_values,
-            'BarPlot_X_Kurtosis_Values': bar_plot_x_kurtosis_values,
-            'BarPlot_Y_Kurtosis_Values': bar_plot_y_kurtosis_values,
-            'BarPlot_Z_Kurtosis_Values': bar_plot_z_kurtosis_values,
-            'BarPlot_XYZ_Kurtosis_Values': bar_plot_xyz_kurtosis_values,
-            'BarPlot_X_Board_Temperatures': bar_plot_x_board_temperatures,
-            'BarPlot_Y_Board_Temperatures': bar_plot_y_board_temperatures,
-            'BarPlot_Z_Board_Temperatures': bar_plot_z_board_temperatures,
-            'BarPlot_XYZ_Board_Temperatures': bar_plot_xyz_board_temperatures,
-            'BarPlot_X_Time': bar_plot_x_time,
-            'BarPlot_Y_Time': bar_plot_y_time,
-            'BarPlot_Z_Time': bar_plot_z_time,
-            'BarPlot_XYZ_Time': bar_plot_xyz_time,
-            'XBackgroundColor': x_background_color,
-            'XBorderColor': x_border_color,
-            'YBackgroundColor': y_background_color,
-            'YBorderColor': y_border_color,
-            'ZBackgroundColor': z_background_color,
-            'ZBorderColor': z_border_color,
-            'XYZBackgroundColor': xyz_background_color,
-            'XYZBorderColor': xyz_border_color,
-        }
-
-        # schedule.every(60).seconds.do(result_json)
-
-        # while request:
-        #     schedule.run_pending()
-        #     time.sleep(1)
-
-        return JsonResponse({'info': info}, status=201)
-
-
-def other_data(request, sensor_tag):
-    x, y, z, xyz = 0, 1, 2, 3
-
-    # RMS (rms acceleration; rms 가속도 : 일정 시간 동안의 가속도 제곱의 평균의 제곱근
-    my_rms, my_kurtosis, my_board_temperatures, my_time, flags, start_time = result_json(sensor_tag)
-
-    # you can change graph parameters
-    acceleration_x = []
-    acceleration_y = []
-    acceleration_z = []
-    acceleration_xyz = []
-
-    bar_plot_x = []
-    bar_plot_y = []
-    bar_plot_z = []
-    bar_plot_xyz = []
-
-    bar_plot_x_board_temperatures = []
-    bar_plot_y_board_temperatures = []
-    bar_plot_z_board_temperatures = []
-    bar_plot_xyz_board_temperatures = []
-
-    bar_plot_x_time = []
-    bar_plot_y_time = []
-    bar_plot_z_time = []
-    bar_plot_xyz_time = []
-
-    background_color = []
-    border_color = []
-
-    if flags[x] == 1 and flags[y] == flags[z]:
-        date_list_x = []
-        for i in range(len(my_time[x])):
-            date_list_x.append(my_time[x][i] - start_time)
-
-        bar_plot_x_board_temperatures = my_board_temperatures[x]
-        bar_plot_x_time = date_list_x
-
-        x_step_size = 0
-        for i in range(len(my_time[x])):
-            acceleration_x.append(x_step_size)
-            background_color.append('#3e95cd')
-            border_color.append('#3e95cd')
-            x_step_size += 0.5
-
-    if flags[y] == 1 and flags[x] == flags[z]:
-        date_list_y = []
-        for i in range(len(my_time[y])):
-            date_list_y.append(my_time[y][i] - start_time)
-
-        bar_plot_y_board_temperatures = my_board_temperatures[y]
-        bar_plot_y_time = date_list_y
-
-        y_step_size = 0
-        for i in range(len(my_time[y])):
-            acceleration_y.append(y_step_size)
-            background_color.append('#3e95cd')
-            border_color.append('#3e95cd')
-            y_step_size += 0.5
-
-    if flags[z] == 1 and flags[x] == flags[y]:
-        date_list_z = []
-        for i in range(len(my_time[z])):
-            date_list_z.append(my_time[z][i] - start_time)
-
-        print(f'date_list_z: {date_list_z}')
-        bar_plot_z_board_temperatures = my_board_temperatures[z]
-        bar_plot_z_time = date_list_z
-
-        z_step_size = 0
-        for i in range(len(my_board_temperatures[z])):
-            acceleration_z.append(z_step_size)
-            background_color.append('#3e95cd')
-            border_color.append('#3e95cd')
-            z_step_size += 0.5
-
-    if flags[x] == flags[y] == flags[z] == 1:
-        date_list = []
-
-        plot_x_pairs = dict(zip(my_time[x], my_board_temperatures[x]))
-        plot_y_pairs = dict(zip(my_time[y], my_board_temperatures[y]))
-        plot_z_pairs = dict(zip(my_time[z], my_board_temperatures[z]))
-
-        # dictionary 형태로 update
-        plot_y_pairs.update(plot_x_pairs)
-        plot_z_pairs.update(plot_y_pairs)
-
-        # 최종 결과 기준 key 값으로 정렬
-        results = dict(sorted(plot_z_pairs.items()))
-        time_list = list(results.keys())
-        value_list = list(results.values())
-
-        # 시간을 빼주고 다른 배열에 저장
-        for i in range(len(results)):
-            date_list.append(time_list[i] - start_time)
-
-        bar_plot_xyz_board_temperatures = value_list
-        print(f'result : {bar_plot_xyz_board_temperatures}')
-
-        bar_plot_xyz_time = date_list
-
-        xyz_step_size = 0.5
-        for i in range(len(results)):
-            acceleration_xyz.append(xyz_step_size)
-            background_color.append('#3e95cd')
-            border_color.append('#3e95cd')
-            xyz_step_size += 0.5
-
-    context = {
-        'Acceleration_X': acceleration_x,
-        'Acceleration_Y': acceleration_y,
-        'Acceleration_Z': acceleration_z,
-        'Acceleration_XYZ': acceleration_xyz,
-        'BarPlot_X': bar_plot_x,
-        'BarPlot_Y': bar_plot_y,
-        'BarPlot_Z': bar_plot_z,
-        'BarPlot_XYZ': bar_plot_xyz,
-        'BarPlot_X_Board_Temperatures': bar_plot_x_board_temperatures,
-        'BarPlot_Y_Board_Temperatures': bar_plot_y_board_temperatures,
-        'BarPlot_Z_Board_Temperatures': bar_plot_z_board_temperatures,
-        'BarPlot_XYZ_Board_Temperatures': bar_plot_xyz_board_temperatures,
-        'BarPlot_X_time': bar_plot_x_time,
-        'BarPlot_Y_time': bar_plot_y_time,
-        'BarPlot_Z_time': bar_plot_z_time,
-        'BarPlot_XYZ_time': bar_plot_xyz_time,
-        'backgroundColor': background_color,
-        'borderColor': border_color,
-    }
-
-    return render(request, 'home/other-data.html', {'context': context})
 
 def test(request):
     total_count = 100
@@ -1950,6 +1784,12 @@ def pages(request):
 
         load_template = request.path.split('/')[-1]
 
+        # 1. core의 url.py에 해당 코드 없이 /home/admin 링크를 걸면 이동 가능
+        # admin.site.index_template = 'admin/custom.html'
+        # admin.autodiscover()
+
+        # 2. admin 폴더의 custom.html 삭제해도 이동 가능
+
         if load_template == 'admin':
             return HttpResponseRedirect(reverse('admin:index'))
         context['segment'] = load_template
@@ -1965,6 +1805,3 @@ def pages(request):
     except requests.exceptions.HTTPError:
         html_template = loader.get_template('home/page-500.html')
         return HttpResponse(html_template.render(context, request))
-
-
-
