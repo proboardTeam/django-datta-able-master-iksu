@@ -40,17 +40,17 @@ import schedule
 import pytz
 
 # serverIP = '25.9.7.151'
-serverIP = '25.52.52.52'
+# serverIP = '25.52.52.52'
 # serverIP = '25.58.137.19'
 # serverIP = '25.105.77.110'
 
-serverUrl = urlparse('http://{:s}:8000/graphql'.format(serverIP))
+# serverUrl = urlparse('http://{:s}:8000/graphql'.format(serverIP))
 
 
 @login_required(login_url="/login/")
 def index(request):
-
     try:
+        # del request.session["userId"]
         user_id = request.session.get("userId")
 
         if user_id is None:
@@ -68,6 +68,7 @@ def index(request):
                 company_info = RequestFactorySerializer.request_company_id_check_one(user_info.get().company_fk_id)
                 print(f'회사명 : {company_info.company_name}')
                 company_name = company_info.company_name
+                request.session["companyName"] = company_name
 
                 machine_list = RequestFactorySerializer.request_machine_id_check(company_info.company_id)
                 machine_names = list(machine_list.values_list('machine_name', flat=True).values())
@@ -83,8 +84,21 @@ def index(request):
                 # for mac_unit in mac_id:
                 #     print(mac_unit)
 
-                if company_name == "동광사우" and sensor_tags:
-                    my_rms, my_kurtosis, my_time, flags, start_time, board_temperature = result_json(sensor_tags[0])
+                if sensor_tags:
+                    my_rms, my_kurtosis, my_time, flags, start_time, board_temperature = result_json(request, sensor_tags[0])
+
+                    if not my_rms or not my_kurtosis or not my_time or not flags or start_time is None or board_temperature is None:
+                        contents = {'segment': 'index', 'username': username, 'company_name': company_name,
+                                    'machine_names': machine_names, 'sensor_tags': sensor_tags,
+                                    'BarPlot_XYZ_RMS_Values': [],
+                                    'BarPlot_XYZ_Kurtosis_Values': [],
+                                    'BarPlot_XYZ_Time': [],
+                                    'XYZBackgroundColor': [],
+                                    'XYZBorderColor': [],
+                                    'my_board_temperature': 0}
+
+                        return render(request, 'home/index.html', {'contents': contents})
+
                     print(f'board_temperature = {board_temperature}')
                     # print(user_info)
                     # user_tuple = models.UserProfile.objects.values_list('id', 'username')
@@ -134,7 +148,7 @@ def index(request):
                                 'BarPlot_XYZ_Time': [],
                                 'XYZBackgroundColor': [],
                                 'XYZBorderColor': [],
-                                'my_board_temperature': []}
+                                'my_board_temperature': 0}
 
                     html_template = loader.get_template('home/index.html')
 
@@ -149,7 +163,7 @@ def index(request):
                             'BarPlot_XYZ_Time': [],
                             'XYZBackgroundColor': [],
                             'XYZBorderColor': [],
-                            'my_board_temperature': []}
+                            'my_board_temperature': 0}
                 return HttpResponse(html_template.render(contents, request))
 
     except KeyError:
@@ -539,14 +553,21 @@ class Initiation(object):
 
 def init(request):
     mac_list = Sensor.objects.values_list('sensor_mac', flat=True)
+
+    serverIP = None
+    if request.session.get("company_name") == "동광사우":
+        serverIP = '25.52.52.52'
+
+    elif request.session.get("company_name") == "reshenie":
+        serverIP = '25.9.7.151'
+
+    serverUrl = urlparse('http://{:s}:8000/graphql'.format(serverIP))
+
     for mac_id in mac_list:
         # print(mac_id)
         Initiation.reboot_sensor(server_url=serverUrl, mac_id=mac_id)
         Initiation.get_init_wakeup(server_url=serverUrl, mac_id=mac_id, period=120)
-        Initiation.set_tilt_guard_roll(server_url=serverUrl, degrees=60, mac_id="5e:54:8a:8a")
-        # Initiation.get_init_wakeup(server_url=serverUrl, mac_id=mac_id, period=120)
-        # Initiation.get_init_wakeup(server_url=serverUrl, mac_id=mac_id, period=120)
-        # Initiation.get_init_wakeup(server_url=serverUrl, mac_id=mac_id, period=120)
+        # Initiation.set_tilt_guard_roll(server_url=serverUrl, degrees=60, mac_id="5e:54:8a:8a")
 
     return redirect("/")
 
@@ -660,7 +681,7 @@ def rms(ndarray):
 
 
 # request,
-def result_json(sensor_tag):
+def result_json(request, sensor_tag):
     start_proc = time.time()
 
     logging.basicConfig(level=logging.INFO)
@@ -674,9 +695,15 @@ def result_json(sensor_tag):
     # serverIP = '25.55.114.208'  # KPU
     # serverIP = '25.12.181.157' #SKT1
     # serverIP = '25.17.10.130' #SKT2
+    serverIP = None
 
-    # serverIP = '25.9.7.151'
-    # serverUrl = urlparse('http://{:s}:8000/graphql'.format(serverIP))
+    if request.session.get("companyName") == "reshenie":
+        serverIP = '25.9.7.151'
+
+    if request.session.get("companyName") == "동광사우":
+        serverIP = '25.52.52.52'
+
+    serverUrl = urlparse('http://{:s}:8000/graphql'.format(serverIP))
 
     sensor = RequestFactorySerializer.request_sensor_name_check(sensor_tag)
 
@@ -701,11 +728,11 @@ def result_json(sensor_tag):
     endtime = time.time() - 3600 * 48
     starttime = endtime - 3600 * 48
 
-    # end_time_stamp_str = datetime.datetime.fromtimestamp(endtime).strftime("%Y-%m-%dT%H:%M:%S.%f+00:00")
-    # start_time_stamp_str = datetime.datetime.fromtimestamp(starttime).strftime("%Y-%m-%dT%H:%M:%S.%f+00:00")
+    end_time_stamp_str = datetime.datetime.fromtimestamp(endtime).strftime("%Y-%m-%dT%H:%M:%S.%f+00:00")
+    start_time_stamp_str = datetime.datetime.fromtimestamp(starttime).strftime("%Y-%m-%dT%H:%M:%S.%f+00:00")
 
-    start_time_stamp_str = "2022-04-25T00:00:00"
-    end_time_stamp_str = "2022-04-25T23:59:59"
+    # start_time_stamp_str = "2022-04-25T00:00:00"
+    # end_time_stamp_str = "2022-04-25T23:59:59"
 
     print(f'start time = {start_time_stamp_str}, end time = {end_time_stamp_str}')
 
@@ -764,6 +791,11 @@ def result_json(sensor_tag):
         limit=limit,
         axis=axisX
     )
+
+    if not values_x or not datesX:
+        return [], [], \
+               [], \
+               [], None, None
 
     epoch_dates_x = []
     i = 0
@@ -1005,7 +1037,7 @@ def result_json(sensor_tag):
     #         print(json_data['contents']['ZRms'])
     #     print("=====================================================================================")
 
-    base_time = time.mktime(datetime.datetime.strptime(start_time_stamp_str, "%Y-%m-%dT%H:%M:%S").timetuple())
+    base_time = time.mktime(datetime.datetime.strptime(start_time_stamp_str, "%Y-%m-%dT%H:%M:%S.%f+00:00").timetuple())
     print(f"start base time : {base_time}")
 
     # inner repeat
@@ -1485,7 +1517,7 @@ class OtherDataGraph(View):
         x, y, z, xyz = 0, 1, 2, 3
 
         # RMS (rms acceleration; rms 가속도 : 일정 시간 동안의 가속도 제곱의 평균의 제곱근
-        my_rms, my_kurtosis, my_time, flags, start_time, my_board_temperatures = result_json(kwargs['sensor_tag'])
+        my_rms, my_kurtosis, my_time, flags, start_time, my_board_temperature = result_json(kwargs['sensor_tag'])
         start_time_str = datetime.datetime.fromtimestamp(start_time).strftime("%Y년 %m월 %d일 %H시 %M분 %S초")
         print(f'my_rms[x] length : {len(my_rms[x])}, my_time[x] length : {len(my_time[x])}')
         print(f'my_rms[y] length : {len(my_rms[y])}, my_time[y] length : {len(my_time[y])}, my_time : {my_time[y]}')
@@ -1515,7 +1547,7 @@ class OtherDataGraph(View):
             'BarPlot_Y_Kurtosis_Values': bar_plot_y_kurtosis_values,
             'BarPlot_Z_Kurtosis_Values': bar_plot_z_kurtosis_values,
             'BarPlot_XYZ_Kurtosis_Values': bar_plot_xyz_kurtosis_values,
-            'BarPlot_Board_Temperatures': my_board_temperatures,
+            'BarPlot_Board_Temperature': my_board_temperature,
             'BarPlot_X_Time': bar_plot_x_time,
             'BarPlot_Y_Time': bar_plot_y_time,
             'BarPlot_Z_Time': bar_plot_z_time,
@@ -1569,7 +1601,7 @@ def test(request):
     return render(request, 'tester/index.html', context)
 
 
-def gql_process(sensor_tag):
+def gql_process(request, sensor_tag):
     time.sleep(1)
 
     start_proc = time.time()
@@ -1583,7 +1615,14 @@ def gql_process(sensor_tag):
     # serverIP = '25.12.181.157' #SKT1
     # serverIP = '25.17.10.130' #SKT2
     # serverIP = '25.9.7.151'
-    serverIP = '25.52.52.52'
+    serverIP = None
+
+    if request.session.get("companyName") == "reshenie":
+        serverIP = '25.9.7.151'
+
+    if request.session.get("companyName") == "동광사우":
+        serverIP = '25.52.52.52'
+
     serverUrl = urlparse('http://{:s}:8000/graphql'.format(serverIP))
 
     sensor = RequestFactorySerializer.request_sensor_name_check(sensor_tag)
@@ -1612,11 +1651,11 @@ def gql_process(sensor_tag):
     endtime = time.time() - 3600 * 48
     starttime = endtime - 3600 * 48
 
-    # end_time_stamp_str = datetime.datetime.fromtimestamp(endtime).strftime("%Y-%m-%dT%H:%M:%S.%f+00:00")
-    # start_time_stamp_str = datetime.datetime.fromtimestamp(starttime).strftime("%Y-%m-%dT%H:%M:%S.%f+00:00")
+    end_time_stamp_str = datetime.datetime.fromtimestamp(endtime).strftime("%Y-%m-%dT%H:%M:%S.%f+00:00")
+    start_time_stamp_str = datetime.datetime.fromtimestamp(starttime).strftime("%Y-%m-%dT%H:%M:%S.%f+00:00")
 
-    start_time_stamp_str = "2022-04-19"
-    end_time_stamp_str = "2022-04-20"
+    # start_time_stamp_str = "2022-04-19"
+    # end_time_stamp_str = "2022-04-20"
 
     # start_time_stamp_str = "2022-03-23"
     # end_time_stamp_str = "2022-03-25"
