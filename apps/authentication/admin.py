@@ -6,7 +6,7 @@ Copyright (c) 2019 - present AppSeed.us
 from django.contrib import admin
 from django.contrib.auth.models import Group
 from .models import UserProfile
-from apps.factory.models import CompanyProfile, Machine, Sensor
+from apps.factory.models import CompanyProfile, Server, Machine, Sensor
 from .serializer import RequestSerializer, RequestFactorySerializer
 from django import forms
 
@@ -45,6 +45,10 @@ class UserInline(admin.StackedInline):
     model = UserProfile
 
 
+class ServerInline(admin.StackedInline):
+    model = Server
+
+
 class MachineInline(admin.StackedInline):
     model = Machine
 
@@ -59,10 +63,17 @@ class CompanyChoiceField(forms.ModelChoiceField):
         return f"Company: {obj.company_name}"
 
 
+class ServerChoiceField(forms.ModelChoiceField):
+    def label_from_instance(self, obj):
+        print(f'object : {obj}')
+        return f"Server: {obj.server_name}"
+
+
 class MachineChoiceField(forms.ModelChoiceField):
     def label_from_instance(self, obj):
         print(f'object : {obj}')
         return f"Machine: {obj.machine_name}"
+
 
 # Register your models here.
 # 맨 처음 화면, 등록된 모델마다 메뉴가 생김
@@ -77,7 +88,7 @@ class UserAdmin(admin.ModelAdmin):
     # form = UserCreationForm
     list_display = ('username', 'email', 'company_name_list', 'is_admin')
     list_filter = ('is_admin',)
-    readonly_fields = ('password', )
+    readonly_fields = ('password',)
     # inlines = (CompanyInline,)
 
     # User 목록 중 하나를 클릭하면 상세 정보 표시
@@ -168,6 +179,28 @@ class CompanyAdmin(admin.ModelAdmin):
     # user_email.short_description = "sensor_name"
 
 
+@admin.register(Server)
+class ServerAdmin(admin.ModelAdmin):
+    # pass
+    list_display = ('server_name', 'company_name',)
+    inlines = (SensorInline,)
+
+    def formfield_for_foreignkey(self, db_field, request, **kwargs):
+        if db_field.name == 'company_fk':
+            return CompanyChoiceField(queryset=CompanyProfile.objects.all())
+        return super().formfield_for_foreignkey(db_field, request, **kwargs)
+
+    def company_name(self, obj):
+        str_list = []
+        result = CompanyProfile.objects.filter(company_id=obj.company_fk_id).values_list('company_name', flat=True)
+        for result_val in result:
+            str_list.append(result_val)
+
+        return str_list
+
+    company_name.short_description = "company_name"
+
+
 @admin.register(Machine)
 class MachineAdmin(admin.ModelAdmin):
     # pass
@@ -194,9 +227,11 @@ class MachineAdmin(admin.ModelAdmin):
 @admin.register(Sensor)
 class SensorAdmin(admin.ModelAdmin):
     # pass
-    list_display = ('sensor_parent', 'sensor_mac', 'sensor_name', 'machine_name', 'company_name', )
+    list_display = ('sensor_parent', 'sensor_mac', 'sensor_name', 'machine_name', 'server_name', 'company_name',)
 
     def formfield_for_foreignkey(self, db_field, request, **kwargs):
+        if db_field.name == 'server_fk':
+            return ServerChoiceField(queryset=Server.objects.all())
         if db_field.name == 'machine_fk':
             return MachineChoiceField(queryset=Machine.objects.all())
         if db_field.name == 'company_fk':
@@ -220,6 +255,16 @@ class SensorAdmin(admin.ModelAdmin):
 
     machine_name.short_description = "machine_name"
 
+    def server_name(self, obj):
+        str_list = []
+        result = Server.objects.filter(server_id=obj.server_fk_id).values_list('server_name', flat=True)
+        for result_val in result:
+            str_list.append(result_val)
+
+        return str_list
+
+    server_name.short_description = "server_name"
+
     def company_name(self, obj):
         str_list = []
         result = CompanyProfile.objects.filter(company_id=obj.company_fk_id).values_list('company_name', flat=True)
@@ -229,6 +274,7 @@ class SensorAdmin(admin.ModelAdmin):
         return str_list
 
     company_name.short_description = "company_name"
+
 
 # admin.site.register(UserProfile, UserAdmin)
 admin.site.unregister(Group)

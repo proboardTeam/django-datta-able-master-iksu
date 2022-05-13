@@ -14,7 +14,7 @@ from django.urls import reverse
 from django.shortcuts import render, redirect
 from apps.authentication.serializer import RequestSerializer
 from apps.authentication import views, forms, models
-from apps.factory.models import CompanyProfile, Machine, Sensor
+from apps.factory.models import CompanyProfile, Server, Machine, Sensor
 from django.db.utils import OperationalError
 from apps.factory.serializer import RequestFactorySerializer
 from concurrent.futures import ThreadPoolExecutor
@@ -69,6 +69,10 @@ def index(request):
                 print(f'회사명 : {company_info.company_name}')
                 company_name = company_info.company_name
                 request.session["companyName"] = company_name
+
+                server = Server.objects.get(company_fk_id=company_info.company_id)
+                print(f'server IP : {server.server_name}')
+                request.session["serverIP"] = server.server_name
 
                 machine_list = RequestFactorySerializer.request_machine_id_check(company_info.company_id)
                 machine_names = list(machine_list.values_list('machine_name', flat=True).values())
@@ -554,13 +558,7 @@ class Initiation(object):
 def init(request):
     mac_list = Sensor.objects.values_list('sensor_mac', flat=True)
 
-    serverIP = None
-    if request.session.get("company_name") == "동광사우":
-        serverIP = '25.52.52.52'
-
-    elif request.session.get("company_name") == "reshenie":
-        serverIP = '25.9.7.151'
-
+    serverIP = request.session.get("serverIP")
     serverUrl = urlparse('http://{:s}:8000/graphql'.format(serverIP))
 
     for mac_id in mac_list:
@@ -695,14 +693,7 @@ def result_json(request, sensor_tag):
     # serverIP = '25.55.114.208'  # KPU
     # serverIP = '25.12.181.157' #SKT1
     # serverIP = '25.17.10.130' #SKT2
-    serverIP = None
-
-    if request.session.get("companyName") == "reshenie":
-        serverIP = '25.9.7.151'
-
-    if request.session.get("companyName") == "동광사우":
-        serverIP = '25.52.52.52'
-
+    serverIP = request.session.get("serverIP")
     serverUrl = urlparse('http://{:s}:8000/graphql'.format(serverIP))
 
     sensor = RequestFactorySerializer.request_sensor_name_check(sensor_tag)
@@ -1615,14 +1606,7 @@ def gql_process(request, sensor_tag):
     # serverIP = '25.12.181.157' #SKT1
     # serverIP = '25.17.10.130' #SKT2
     # serverIP = '25.9.7.151'
-    serverIP = None
-
-    if request.session.get("companyName") == "reshenie":
-        serverIP = '25.9.7.151'
-
-    if request.session.get("companyName") == "동광사우":
-        serverIP = '25.52.52.52'
-
+    serverIP = request.session.get("serverIP")
     serverUrl = urlparse('http://{:s}:8000/graphql'.format(serverIP))
 
     sensor = RequestFactorySerializer.request_sensor_name_check(sensor_tag)

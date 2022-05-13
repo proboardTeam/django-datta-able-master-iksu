@@ -185,7 +185,35 @@ class JsonGraph(View):
 
         # RMS (rms acceleration; rms 가속도 : 일정 시간 동안의 가속도 제곱의 평균의 제곱근
         # my_rms, my_kurtosis, my_time, flags, start_time, my_board_temperatures = views.result_json(kwargs['sensor_tag'])
-        my_rms, my_kurtosis, my_time, flags, start_time, my_board_temperature = views.result_json(request.POST['sensor_tag'])
+        my_rms, my_kurtosis, my_time, flags, start_time, my_board_temperature = views.result_json(request, request.POST['sensor_tag'])
+        if not my_rms or not my_kurtosis or not my_time or not flags or start_time is None or my_board_temperature is None:
+            context = {
+                'Measurement_Start_Time': '',
+                'BarPlot_X_RMS_Values': [],
+                'BarPlot_Y_RMS_Values': [],
+                'BarPlot_Z_RMS_Values': [],
+                'BarPlot_XYZ_RMS_Values': [],
+                'BarPlot_X_Kurtosis_Values': [],
+                'BarPlot_Y_Kurtosis_Values': [],
+                'BarPlot_Z_Kurtosis_Values': [],
+                'BarPlot_XYZ_Kurtosis_Values': [],
+                'BarPlot_Board_Temperature': 0,
+                'BarPlot_X_Time': [],
+                'BarPlot_Y_Time': [],
+                'BarPlot_Z_Time': [],
+                'BarPlot_XYZ_Time': [],
+                'XBackgroundColor': [],
+                'XBorderColor': [],
+                'YBackgroundColor': [],
+                'YBorderColor': [],
+                'ZBackgroundColor': [],
+                'ZBorderColor': [],
+                'XYZBackgroundColor': [],
+                'XYZBorderColor': [],
+            }
+
+            return JsonResponse({'context': context}, status=201)
+
         start_time_str = datetime.datetime.fromtimestamp(start_time).strftime("%Y년 %m월 %d일 %H시 %M분 %S초")
         print(f'my_rms[x] length : {len(my_rms[x])}, my_time[x] length : {len(my_time[x])}')
         print(f'my_rms[y] length : {len(my_rms[y])}, my_time[y] length : {len(my_time[y])}, my_time : {my_time[y]}')
