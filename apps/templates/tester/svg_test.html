@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <meta charset="UTF-8">
+    <title>Title</title>
+    <style>
+        {#i{#}
+        {#    width: 30px;#}
+        {#    height: 30px;#}
+        {#    display: inline-block;#}
+        {# }#}
+        svg{
+            width: 200px;
+            height: 200px;
+        }
+    </style>
+</head>
+<body>
+<div class="icon-three-roll"></div>
+<div class="icon-MCT"></div>
+</body>
+<script>
+    Promise.all([
+        d3.xml("machinery-svg-repo-com.svg"),
+        d3.xml("machining-center.svg"),
+    ]).then(([threeRollIllustration, MCT_Illustration]) =>{
+        d3.select(".icon-three-roll").node().append(threeRollIllustration.documentElement);
+        d3.select(".icon-MCT").node().append(MCT_Illustration.documentElement);
+     });
+</script>
+</html>

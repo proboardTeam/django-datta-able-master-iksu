@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title><!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Document</title>
+ <style>
+   *{
+    margin:0;
+    padding: 0;
+    box-sizing:border-box;
+}
+body{
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%,-50%);
+}
+.battery-outer{
+    background: transparent;
+    width: 100px;
+    height: 250px;
+    border: 3px solid black;
+    border-radius: 5px;
+    position: relative;
+}
+.battery-outer::after{
+    content: ' ';
+    position: absolute;
+    top: calc(50% - 8px);
+    top: -6px;
+    left: 40px;
+    width: 16px;
+    height: 5px;
+    background: black;
+    border-top-right-radius: 2px;
+    border-bottom-right-radius: 2px;
+}
+.battery-level{
+    position:absolute;
+    bottom: 0;
+    width: 100%;
+    height: 100%;
+    background: #fff;
+    animation: bttry-lvl 3s linear normal infinite;
+}
+@keyframes bttry-lvl{
+    100%{
+        height: 100%;
+        background: rgb(13, 211, 13);
+    }
+    0%{
+        height: 0%;
+        background: red;
+    }
+
+}
+ </style>
+</head>
+<body>
+  <div class="battery-outer">
+    <div class="battery-level"></div>
+  </div>
+</body>
+</html>
