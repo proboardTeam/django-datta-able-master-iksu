@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from .models import UserProfile, UserProfileManager
-from apps.factory.serializer import RequestFactorySerializer
+from apps.factory.serializer import RequestTotalSerializer
 from rest_framework.exceptions import ValidationError
 
 
@@ -39,7 +39,7 @@ class RequestSerializer(serializers.ModelSerializer):
 
     @staticmethod
     def request_company_check(request):
-        info = RequestFactorySerializer.request_company_id_check(request)
+        info = RequestTotalSerializer.request_company_id_check(request)
 
         return info
 

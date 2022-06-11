@@ -87,23 +87,10 @@ class MachineForm(UserCreationForm):
 
 
 class SensorForm(forms.Form):
-    username = forms.CharField(
-        widget=forms.TextInput(
-            attrs={
-                "placeholder": "이름",
-                "class": "form-control"
-            }
-        ),
-    )
-    password = forms.CharField(
-        widget=forms.PasswordInput(
-            attrs={
-                "placeholder": "비밀번호",
-                "class": "form-control"
-            }
-        ),
-    )
 
     class Meta:
         model = Sensor
-        fields = ('username', 'password')
+        fields = '__all__'
+        widgets = {
+
+        }

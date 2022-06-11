@@ -1,12 +1,149 @@
+{% load select %}
+<script src="https://d3js.org/d3.v7.min.js"></script>
+<style>
+    h1, h2, h3, h4, h5, h6{
+        color: #a9b7d0;
+    }
+
+    .pcoded-navbar, .navbar-brand{
+        background: #182035;
+        padding: 15px 0;
+    }
+
+    svg{
+        max-width: 52px;
+        max-height: 52px;
+        fill: #a9b7d0;
+        float: left;
+        position: relative;
+        margin: 0 auto;
+        padding: 10px 10px 10px 10px;
+    }
+
+    .pcoded-micon > i > svg{
+        padding-left: 25px;
+    }
+
+    .pcoded-mtext{
+        padding-left: 20px;
+        height: 100%;
+    }
+
+    {#.nav-link-box:hover{#}
+    {#    transform: translate3d(10px, 0px, 10px);#}
+    {#    position: relative;#}
+    {#    background: #1de1da;#}
+    {#    transition: 0.3s;#}
+    {# }#}
+
+    .pcoded-mtext {
+        padding-left: 0;
+    }
+
+    .nav-link-box > .pcoded-mtext{
+        padding-left: 10px;
+    }
+
+    .nav-link-box > .pcoded-mtext > button{
+        padding-top: 2px;
+        margin: 6px;
+        border: 0;
+        outline: 0;
+        background-color:transparent;
+        color: #a9b7d0;
+    }
+
+    .pcoded-navbar.navbar-collapsed .pcoded-inner-navbar > li > form{
+        padding-left: 5px;
+    }
+
+    .pcoded-navbar.navbar-collapsed .pcoded-inner-navbar > li > form > .nav-link-box > span > button {
+        z-index: 1026;
+        padding: 0 10px 10px;
+    }
+
+    .pcoded-navbar.navbar-collapsed .pcoded-inner-navbar > li > form > .nav-link-box > .pcoded-mtext {
+        -webkit-transform: rotateY(-90deg);
+        transform: rotateY(-90deg);
+        -webkit-transform-origin: 0 0;
+        transform-origin: 0 0;
+        opacity: 0;
+        -webkit-transition: all 0.3s ease-in-out;
+        transition: all 0.3s ease-in-out;
+    }
+
+    .pcoded-navbar.navbar-collapsed .pcoded-inner-navbar > li.pcoded-trigger .pcoded-submenu li > form > .nav-link-box > span > button {
+      color: transparent;
+      white-space: nowrap;
+    }
+
+    .pcoded-navbar.navbar-collapsed .pcoded-inner-navbar > li.pcoded-trigger .pcoded-submenu .pcoded-submenu li > form > .nav-link-box > span > button:before {
+      opacity: 0;
+    }
+
+    .pcoded-navbar.navbar-collapsed:hover .pcoded-inner-navbar > li > form > .nav-link-box > .pcoded-mtext {
+      -webkit-transform: rotateY(0deg);
+      transform: rotateY(0deg);
+      opacity: 1;
+    }
+
+    .pcoded-navbar.navbar-collapsed:hover .pcoded-inner-navbar > li > form > .nav-link-box > .pcoded-mtext:after {
+      opacity: 1;
+      visibility: visible;
+    }
+
+    .pcoded-navbar.navbar-collapsed:hover .pcoded-inner-navbar > li.pcoded-hasmenu > form > .nav-link-box > span > button:after {
+      -webkit-transform: rotateX(0deg);
+      transform: rotateX(0deg);
+    }
+
+    .pcoded-navbar.navbar-collapsed:hover .pcoded-inner-navbar > li.pcoded-hasmenu.pcoded-trigger > form > .nav-link-box > span > button:after {
+      -webkit-transform: rotateX(0deg) rotate(90deg);
+      transform: rotateX(0deg) rotate(90deg);
+    }
+
+
+    .pcoded-navbar.navbar-collapsed:hover .pcoded-inner-navbar > li.pcoded-trigger .pcoded-submenu li > form > .nav-link-box > span > button{
+      color: inherit;
+    }
+
+    .pcoded-navbar.navbar-collapsed:hover .pcoded-inner-navbar > li.pcoded-trigger .pcoded-submenu .pcoded-submenu li > form > .nav-link-box > span > button:before {
+      opacity: 1;
+    }
+
+    .pcoded-navbar .pcoded-inner-navbar li.active > form > .nav-link-box > span > button,
+    .pcoded-navbar .pcoded-inner-navbar li:focus > form > .nav-link-box > span > button,
+    .pcoded-navbar .pcoded-inner-navbar li:hover > form > .nav-link-box > span > button {
+      color: #1dc4e9;
+    }
+
+    .pcoded-navbar .pcoded-inner-navbar li.active > form > .nav-link-box > .pcoded-micon > i > svg,
+    .pcoded-navbar .pcoded-inner-navbar li:focus > form > .nav-link-box > .pcoded-micon > i > svg,
+    .pcoded-navbar .pcoded-inner-navbar li:hover > form > .nav-link-box >  .pcoded-micon > i > svg {
+      fill: #1dc4e9;
+    }
+
+    {#.pcoded-navbar .pcoded-inner-navbar li .pcoded-submenu > li.active > form >  .nav-link-box > span > button:before,#}
+    {#.pcoded-navbar .pcoded-inner-navbar li .pcoded-submenu > li:focus > form >  .nav-link-box > span > button:before,#}
+    {#.pcoded-navbar .pcoded-inner-navbar li .pcoded-submenu > li:hover > form >  .nav-link-box > span > button:before {#}
+    {#  background: #1dc4e9;#}
+    {# }#}
+
+    .pcoded-navbar .pcoded-inner-navbar > li.active > form > .nav-link-box > span > button,
+    .pcoded-navbar .pcoded-inner-navbar > li.pcoded-trigger > form > .nav-link-box > span > button{
+      background: #333f54;
+      color: #fff;
+    }
+</style>
 <nav class="pcoded-navbar">
   <div class="navbar-wrapper">
     <div class="navbar-brand header-logo">
       <a target="_blank" href="/" class="b-brand">
         <span class="b-title">reshenie</span>
       </a>
-      <a class="mobile-menu" id="mobile-collapse" href="javascript:"
-        ><span></span
-      ></a>
+      <a class="mobile-menu" id="mobile-collapse" href="javascript:">
+          <span></span>
+      </a>
     </div>
     <div class="navbar-content scroll-div">
       <ul class="nav pcoded-inner-navbar">
@@ -24,80 +161,58 @@
         <li class="nav-item pcoded-menu-caption">
           <label>로그인 정보 (하단에 표기)</label>
         </li>
-{#        {% for user in user_info %}#}
-{#            <li class="nav-item pcoded-menu-caption">#}
-{#                <h2> {{ user.username }} 님 환영합니다. </h2>#}
-{#            </li>#}
-{#        {% endfor %}#}
+
         <li class="nav-item pcoded-menu-caption">
-            <h2> {{ contents.username }} 님 환영합니다. </h2>
+            <h4> {{ contents.username }} 님 환영합니다. </h4>
         </li>
-        <li class="nav-item pcoded-menu-caption">
-            <h2></h2>
-            <a href="javascript:" class="nav-link">
-              <span class="pcoded-micon">
-                  <i class="feather icon-box"></i>
-              </span>
-              <span class="pcoded-mtext">메뉴얼</span>
-            </a>
-            <ul class="pcoded-submenu">
-{#                admin 페이지로 이동 가능#}
-                <li class=""><a href="/home/admin" class="">관리자</a></li>
-                <li class=""><a href="{% url 'init' %}" class="">초기화</a></li>
-{#                    {% if sensor_info %}#}
-{#                        {% for sensor in sensor_info %}#}
-{#                            <li> <a href="{% url 'show' sensor.sensor_tag %}">{{ sensor.sensor_tag }}</a></li>#}
-{#                            <li class=""><a href="{% url 'current' sensor.sensor_tag %}" class="">현황판</a></li>#}
-{#                            <li class=""><a href="{% url 'opcua' sensor.sensor_tag %}" class="">OPC-UA 테스트</a></li>#}
-{#                            <li class=""><a href="{% url 'speed' sensor.sensor_tag %}" class="">속도 테스트</a></li>#}
-{#                        {% endfor %}#}
-{#                    {% else %}#}
-{#                        <li class=""><a href="/" class="">등록된 센서가 없습니다.</a></li>#}
-{#                    {% endif %}#}
-                {% if contents.sensor_tags %}
-                        {% for sensor in contents.sensor_tags %}
-                            <li> <a href="{% url 'show' sensor %}">{{ sensor }}</a></li>
-                            <li class=""><a href="{% url 'current' sensor %}" class="">현황판</a></li>
-                            <li class=""><a href="{% url 'opcua' sensor %}" class="">OPC-UA 테스트</a></li>
-                            <li class=""><a href="{% url 'speed' sensor %}" class="">속도 테스트</a></li>
-                        {% endfor %}
-                    {% else %}
-                        <li class=""><a href="/" class="">등록된 센서가 없습니다.</a></li>
-                    {% endif %}
-                <li class=""><a href="/ui-button.html" class="">Button</a></li>
-                <li class=""><a href="/ui-badges.html" class="">Badges</a></li>
-                <li class="">
-                  <a href="/ui-breadcrumb-pagination.html" class="">Breadcrumb & paggination</a>
+        <li class="nav-item pcoded-menu-caption align-items-center border-bottom" style="text-align: center; width: 75%; margin: 0 auto 3px;">
+            <label>Factory</label>
+        </li>
+        {% if not viewer.section_move %}
+            {% company_list as company_info %}
+                {% for company in company_info %}
+                    <li data-username="form elements advance componant validation masking wizard picker select" class="nav-item {% if 'ui-forms' in segment %} active {% endif %}">
+                        <form role="form" method="post" action="/" >{% csrf_token %}
+{#                            <a href="/" class="nav-link">#}
+                                <input type="hidden" id="company_id" name="company_id" value="{{ company.company_id }}" >
+                                <div class="nav-link-box" id="nav-link-box-{{ company.company_id }}">
+                                    <span class="pcoded-micon">
+                                        <i id="icon-{{ company.company_id }}"></i>
+                                    </span>
+                                    {% factory_name_select_by_type company.company_id as get_factory %}
+                                    <span class="pcoded-mtext"><button type="submit">{{ get_factory.factory_name | safe }}</button></span>
+                                </div>
+{#                            </a>#}
+                        </form>
+                    </li>
+                {% endfor %}
+        {% elif viewer.section_move %}
+            {% company_list as company_info %}
+            {% for company in company_info %}
+                <li data-username="form elements advance componant validation masking wizard picker select" class="nav-item {% if 'ui-forms' in segment %} active {% endif %}">
+{#                    <a href="{% url 'dashboard' company.company_id %}" class="nav-link">#}
+                        <form role="form" method="post" action="/">{% csrf_token %}
+                            <input type="hidden" id="company_id" name="company_id" value="{{ company.company_id }}" >
+                            <div class="nav-link-box" id="nav-link-box-{{ company.company_id }}">
+                                <span class="pcoded-micon">
+                                    <i id="icon-{{ company.company_id }}"></i>
+                                </span>
+                                {% factory_name_select_by_type company.company_id as get_factory %}
+                                <span class="pcoded-mtext"><button type="submit">{{ get_factory.factory_name | safe }}</button></span>
+                            </div>
+                        </form>
+{#                    </a>#}
                 </li>
-                <li class=""><a href="/ui-collapse.html" class="">Collapse</a></li>
-                <li class=""><a href="/ui-tabs.html" class="">Tabs & pills</a></li>
-                <li class="">
-                  <a href="/ui-typography.html" class="">Typography</a>
-                </li>
-                <li class="">
-                  <a href="/ui-icons.html" class="">Feather<span class="pcoded-badge label label-danger">NEW</span>
-                  </a>
-                </li>
-            </ul>
-        </li>
-        <li class="nav-item pcoded-menu-caption">
-          <label>Forms & table</label>
-        </li>
-        <li data-username="form elements advance componant validation masking wizard picker select" class="nav-item {% if 'ui-forms' in segment %} active {% endif %}">
-          <a href="/ui-forms.html" class="nav-link">
-              <span class="pcoded-micon">
-                  <i class="feather icon-file-text"></i>
-              </span>
-              <span class="pcoded-mtext">Form elements</span>
-          </a>
-        </li>
-        <li data-username="Table bootstrap datatable footable" class="nav-item {% if 'ui-tables' in segment %} active {% endif %}">
-          <a href="/ui-tables.html" class="nav-link">
-              <span class="pcoded-micon">
-                  <i class="feather icon-server"></i></span>
-              <span class="pcoded-mtext">Table</span>
-          </a>
-        </li>
+            {% endfor %}
+        {% endif %}
+{#        <li data-username="Table bootstrap datatable footable" class="nav-item {% if 'ui-tables' in segment %} active {% endif %}">#}
+{#          <a href="/ui-tables.html" class="nav-link">#}
+{#              <span class="pcoded-micon">#}
+{#                  <i class="feather icon-server"></i>#}
+{#              </span>#}
+{#              <span class="pcoded-mtext">Table</span>#}
+{#          </a>#}
+{#        </li>#}
         <li class="nav-item pcoded-menu-caption">
           <label>Chart & Maps</label>
         </li>
@@ -116,6 +231,52 @@
               </span>
               <span class="pcoded-mtext">Maps</span>
           </a>
+        </li>
+        <li class="nav-item pcoded-menu-caption">
+            <h2></h2>
+            <a href="javascript:" class="nav-link">
+              <span class="pcoded-micon">
+                  <i class="feather icon-box"></i>
+              </span>
+              <span class="pcoded-mtext">메뉴</span>
+            </a>
+            <ul class="pcoded-submenu">
+                <li class=""><a href="/home/admin" class="">관리자</a></li>
+                <li class=""><a href="{% url 'init' %}" class="">초기화</a></li>
+                {% if not viewer.section_move %}
+                    {% sensor_data_view_point contents.view_point as get_sensor %}
+                    {% for index, values in get_sensor.items %}
+{#                        <li> <a href="{% url 'show' index values %}">{{ values }}</a></li>#}
+                        <li class=""><a href="{% url 'current' index values %}" class="">{{ values }} 현황판</a></li>
+                        <li class=""><a href="{% url 'opcua' values %}" class="">{{ values }} OPC-UA 테스트</a></li>
+                        <li class=""><a href="{% url 'speed' values %}" class="">{{ values }} 속도 테스트</a></li>
+                    {% endfor %}
+                {% elif viewer.section_move %}
+                    {% sensor_data_view_point viewer.view_point as get_sensor %}
+                    {% for index, values in get_sensor.items %}
+{#                        <li> <a href="{% url 'show' index values %}">{{ values }}</a></li>#}
+                        <li class=""><a href="{% url 'current' index values %}" class="">{{ values }} 현황판</a></li>
+                        <li class=""><a href="{% url 'opcua' values %}" class="">{{ values }} OPC-UA 테스트</a></li>
+                        <li class=""><a href="{% url 'speed' values %}" class="">{{ values }} 속도 테스트</a></li>
+                    {% endfor %}
+                {% else %}
+                    <li class=""><a href="/" class="">등록된 센서가 없습니다.</a></li>
+                {% endif %}
+                <li class=""><a href="/ui-button.html" class="">Button</a></li>
+                <li class=""><a href="/ui-badges.html" class="">Badges</a></li>
+                <li class="">
+                  <a href="/ui-breadcrumb-pagination.html" class="">Breadcrumb & paggination</a>
+                </li>
+                <li class=""><a href="/ui-collapse.html" class="">Collapse</a></li>
+                <li class=""><a href="/ui-tabs.html" class="">Tabs & pills</a></li>
+                <li class="">
+                  <a href="/ui-typography.html" class="">Typography</a>
+                </li>
+                <li class="">
+                  <a href="/ui-icons.html" class="">Feather<span class="pcoded-badge label label-danger">NEW</span>
+                  </a>
+                </li>
+            </ul>
         </li>
         <li class="nav-item pcoded-menu-caption">
           <label>Pages</label>
@@ -139,34 +300,41 @@
             </li>
           </ul>
         </li>
-        <li
-          data-username="Sample Page"
-          class="nav-item {% if 'page-blank' in segment %} active {% endif %}"
-        >
-          <a href="/page-blank.html" class="nav-link"
-            ><span class="pcoded-micon"
-              ><i class="feather icon-sidebar"></i></span
-            ><span class="pcoded-mtext">Sample page</span></a
-          >
+        <li data-username="Sample Page" class="nav-item {% if 'page-blank' in segment %} active {% endif %}">
+          <a href="/page-blank.html" class="nav-link">
+              <span class="pcoded-micon">
+                  <i class="feather icon-sidebar"></i></span>
+              <span class="pcoded-mtext">Sample page</span></a>
         </li>
         <li data-username="Sample Page" class="nav-item">
-          <a href="/page-404.html" class="nav-link"
-            ><span class="pcoded-micon"
-              ><i class="feather icon-sidebar"></i></span
-            ><span class="pcoded-mtext">Error 404</span></a
-          >
+          <a href="/page-404.html" class="nav-link">
+              <span class="pcoded-micon">
+                  <i class="feather icon-sidebar"></i>
+              </span>
+              <span class="pcoded-mtext">Error 404</span></a>
         </li>
         <li data-username="Sample Page" class="nav-item">
-          <a href="{% url 'account_close' %}" class="nav-link"
-            ><span class="pcoded-micon"
-              ><i class="feather icon-sidebar"></i></span
-            ><span class="pcoded-mtext">회원 탈퇴</span></a
-          >
+            <a href="{% url 'account_update' %}" class="nav-link">
+                <span class="pcoded-micon">
+                    <i class="feather icon-sidebar"></i>
+                </span>
+                <span class="pcoded-mtext">회원 수정</span>
+            </a>
+        </li>
+        <li data-username="Sample Page" class="nav-item">
+            <a href="{% url 'account_close' %}" class="nav-link">
+                <span class="pcoded-micon">
+                    <i class="feather icon-sidebar"></i>
+                </span>
+                <span class="pcoded-mtext">회원 탈퇴</span>
+            </a>
         </li>
         <li data-username="Disabled Menu" class="nav-item">
           <a href="{% url 'logout' %}" class="nav-link">
-            <span class="pcoded-micon"><i class="feather icon-power"></i></span
-            ><span class="pcoded-mtext">Logout</span>
+            <span class="pcoded-micon">
+                <i class="feather icon-power"></i>
+            </span>
+            <span class="pcoded-mtext">Logout</span>
           </a>
         </li>
         <li class="nav-item pcoded-menu-caption">
@@ -176,3 +344,57 @@
     </div>
   </div>
 </nav>
+{#{{ contents | json_script:'jsonData' }}#}
+<script>
+
+    {#const jsonData = JSON.parse(document.getElementById("jsonData").textContent);#}
+
+    let type_icon;
+
+    let iconEventTargets = [];
+    let iconEventTarget;
+    let nav_BoxEventTarget;
+    let nav_BoxEventTargets = [];
+
+    // 최초 한번 결과 불러오기
+    {% company_list as company_info %}
+        {% for company in company_info %}
+            {% get_company_icon_url company.company_id as get_company_type_url %}
+            type_icon = "{{ get_company_type_url | safe }}"
+            {#d3.xml(type_icon).then(data => {#}
+            {#    d3.select("#icon-{{ company.company_id }}").node().append(data.documentElement)#}
+            {# });#}
+            Promise.all([
+                d3.xml(type_icon),
+            ]).then(([Illustration_{{ company.company_id }}]) => {
+                d3.selectAll("#icon-{{ company.company_id }}").nodes().forEach(n =>
+                {
+                    n.append(Illustration_{{ company.company_id }}.documentElement.cloneNode(true))
+                });
+             });
+        {% endfor %}
+
+    {% if not viewer.section_move %}
+        nav_BoxEventTarget = document.getElementById("nav-link-box-" + {{ contents.view_point }})
+        {#console.log('nav_BoxEventTarget : ', nav_BoxEventTarget)#}
+
+        nav_BoxEventTarget.style.transform = "translate3d(10px, 0px, 10px)"
+        nav_BoxEventTarget.style.transition = "0.3s"
+        nav_BoxEventTarget.style.position = "relative"
+        nav_BoxEventTarget.style.background = "#293b63"
+
+    {% elif viewer.section_move %}
+        nav_BoxEventTarget = document.getElementById("nav-link-box-" + {{ viewer.view_point }})
+        {#console.log('nav_BoxEventTarget : ', nav_BoxEventTarget)#}
+
+        nav_BoxEventTarget.style.transform = "translate3d(10px, 0px, 10px)"
+        nav_BoxEventTarget.style.transition = "0.3s"
+        nav_BoxEventTarget.style.position = "relative"
+        nav_BoxEventTarget.style.background = "#293b63"
+
+    {% else %}
+        nav_BoxEventTarget = ""
+
+    {% endif %}
+
+</script>

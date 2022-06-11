@@ -14,20 +14,15 @@ import math
 import scipy.signal
 from scipy import stats
 from opcua import ua, Client, client
-import json
 import time
-import schedule
 from itertools import chain
-from django.http import HttpResponse, HttpResponseRedirect, JsonResponse
-from apps.factory.serializer import RequestFactorySerializer
-import requests
-import matplotlib.pyplot as plt
+from apps.factory.serializer import RequestTotalSerializer
 from concurrent.futures import ThreadPoolExecutor
-from apps.home.views import gql_process
 from django.shortcuts import render
 from django import template
 from django.views import View
 import pytz
+from apps.templatetags import repeat
 
 register = template.Library()
 
@@ -559,7 +554,7 @@ def main(sensor_tag):
     servName = "reshenie1"
     servIP = "25.52.52.52"
 
-    sensor = RequestFactorySerializer.request_sensor_name_check(sensor_tag)
+    sensor = RequestTotalSerializer.request_sensor_name_check(sensor_tag)
     macID = sensor.get().sensor_mac
 
     logging.basicConfig(level=logging.INFO)
@@ -1130,7 +1125,7 @@ def opcua_process(sensor_tag):
     servIP = "25.52.52.52"
     # servIP = "25.9.7.151"
 
-    sensor = RequestFactorySerializer.request_sensor_name_check(sensor_tag)
+    sensor = RequestTotalSerializer.request_sensor_name_check(sensor_tag)
     macID = sensor.get().sensor_mac
 
     logging.basicConfig(level=logging.INFO)
@@ -1433,7 +1428,8 @@ def protocol_test(request, sensor_tag):
     start_time = time.time()
 
     with ThreadPoolExecutor(max_workers=2) as TPE:
-        gql_future = TPE.submit(gql_process, sensor_tag)
+        from django import apps
+        gql_future = TPE.submit(repeat.gql_process, sensor_tag)
 
         opcua_future = TPE.submit(opcua_process, sensor_tag)
 
@@ -1460,35 +1456,36 @@ def protocol_test(request, sensor_tag):
     }
     return render(request, template_name='home/compare.html', context={'context': context})
 
-
-@register.filter
-def protocol_repeat(sensor_tag):
-    start_time = time.time()
-
-    with ThreadPoolExecutor(max_workers=2) as TPE:
-        gql_future = TPE.submit(gql_process, sensor_tag)
-
-        opcua_future = TPE.submit(opcua_process, sensor_tag)
-
-    # gql_future = gql_process(sensor_tag)
-    # opcua_future = opcua_process(sensor_tag)
-
-    end_time = time.time() - start_time
-
-    # print(f'gql_future : {gql_future.result()}')
-    # print(f'opcua_future : {opcua_future.result()}')
-
-    # return JsonResponse({'gql_future': gql_future.result(), 'opcua_future': opcua_future.result(),
-    #                      'current process time': end_time}, status=201)
-
-    # return JsonResponse({'gql_future': gql_future, 'opcua_future': opcua_future,  'current process time': end_time},
-    #                     status=201)
-
-    context = {
-        'gql_result': gql_future.result(),
-        'opcua_result': opcua_future.result(),
-        'current_running_time': end_time,
-
-    }
-
-    return context
+#
+# @register.filter
+# def protocol_repeat(sensor_tag):
+#     start_time = time.time()
+#
+#     with ThreadPoolExecutor(max_workers=2) as TPE:
+#         from django import apps
+#         gql_future = TPE.submit(repeat.gql_process, sensor_tag)
+#
+#         opcua_future = TPE.submit(opcua_process, sensor_tag)
+#
+#     # gql_future = gql_process(sensor_tag)
+#     # opcua_future = opcua_process(sensor_tag)
+#
+#     end_time = time.time() - start_time
+#
+#     # print(f'gql_future : {gql_future.result()}')
+#     # print(f'opcua_future : {opcua_future.result()}')
+#
+#     # return JsonResponse({'gql_future': gql_future.result(), 'opcua_future': opcua_future.result(),
+#     #                      'current process time': end_time}, status=201)
+#
+#     # return JsonResponse({'gql_future': gql_future, 'opcua_future': opcua_future,  'current process time': end_time},
+#     #                     status=201)
+#
+#     context = {
+#         'gql_result': gql_future.result(),
+#         'opcua_result': opcua_future.result(),
+#         'current_running_time': end_time,
+#
+#     }
+#
+#     return context

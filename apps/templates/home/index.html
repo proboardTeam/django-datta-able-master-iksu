@@ -5,8 +5,10 @@
 {% endblock stylesheets %}
 {% block content %}
 {% load repeat %}
-{{ contents | json_script:'jsonData' }}
+{% load select %}
 {%  csrf_token %}
+{#{{ contents | json_script:'jsonData' }}#}
+
 <!-- Resources -->
 <script src="https://code.highcharts.com/highcharts.js" xmlns="http://www.w3.org/1999/html"></script>
 <script src="https://code.highcharts.com/highcharts-more.js"></script>
@@ -16,6 +18,11 @@
 <script src="https://code.highcharts.com/modules/accessibility.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script>
+    {#const jsonData = JSON.parse(document.getElementById("jsonData").textContent);#}
+    {#console.log("jsonData : ", jsonData)#}
+</script>
+<!-- top right bottom left -->
 <style>
     #fixed-wrapper {
         float: right;
@@ -29,166 +36,400 @@
         flex: 0 0 auto;
     }
 
-    #sensors{
+    #sensor_list{
+        display: flex;
+        flex-direction: column;
+        flex: 0 0 auto;
+     }
+
+    .sensor_status{
+        display: flex;
         position: relative;
-        flex-direction: row;
+        flex-direction: column;
         flex: 0 0 auto;
     }
 
-    #sensor_img:nth-child(n), #sensor_graph:nth-child(n){
+    .sensor_img{
+        display: flex;
+        position: relative;
+        flex-direction: column;
+        flex: 0 0 auto;
+    }
+
+    {##datas{#}
+    {#    display: flex;#}
+    {#    position: relative;#}
+    {#    flex-direction: row;#}
+    {#    flex: 0 0 auto;#}
+    {# }#}
+
+    #sensor_datas{
+        position: relative;
+        flex-direction: column;
+        flex: 0 0 auto;
+    }
+
+    .sensor_column:nth-child(n){
+        position: relative;
+        flex-direction: row;
+        flex: 0 0 30%;
+    }
+
+    {#.sensor_gauge:nth-child(n){#}
+    {#    position: relative;#}
+    {#    flex-direction: row;#}
+    {#    flex: 0 0 20%;#}
+    {# }#}
+
+    .sensor_graph:nth-child(even){
+        {#padding-left: 30px;#}
+        position: relative;
+        flex-direction: row;
+        flex: 0 0 50%;
+    }
+
+    .sensor_gauge.col-2:nth-child(n){
+        padding-top: 30px;
+        margin: 0 auto;
+    }
+
+    {#.sensor_temp:nth-child(n){#}
+    {#    padding-left: 30px;#}
+    {#    position: relative;#}
+    {#    flex-direction: row;#}
+    {#    flex: 0 0 40%;#}
+    {# }#}
+
+    .sensor_row:nth-child(n){
+        position: relative;
         flex-direction: column;
         flex: 0 0 50%;
     }
 
+    #sensor_name{
+        display: flex;
+        flex-direction: column;
+        flex: 0 0 auto;
+        justify-content: space-around;
+     }
+
+    #sensor_datas:nth-child(n){
+        flex-direction: column;
+        flex: 0 0 30%;
+     }
+
+    .gauge{
+        padding-top: 10px;
+    }
+
+    .gauge_body{
+        position: absolute;
+    }
+
+    .termometer{
+        height: 120px;
+     }
+
+    h3{
+        font-size: 15px;
+    }
+
+    body{
+        background: #1a2239;
+    }
+
+    .card{
+        background: #1a2239;
+    }
+
     .fixed-header, .fixed-footer{
-            width: 100%;
-            position: fixed;
-            background: #333;
-            padding: 10px 0;
-            color: #fff;
-            top: 0;
-        }
-        .result_box{
-            padding-top: 50px;
-        }
-        .fixed-footer{
-            bottom: 0;
-        }
-        .container{
-            width: 80%;
-            margin: 0 auto; /* Center the DIV horizontally */
-        }
+        width: 100%;
+        position: fixed;
+        background: #333;
+        padding: 10px 0;
+        color: #fff;
+        top: 0;
+    }
+    .result_box{
+        padding-top: 50px;
+    }
+    .fixed-footer{
+        bottom: 0;
+    }
+    .container{
+        width: 80%;
+        margin: 0 auto; /* Center the DIV horizontally */
+    }
+
+    .pie-chart {
+      position: relative;
+      display:inline-block;
+      width: 80px;
+      height: 80px;
+      border-radius: 50%;
+      transition: 0.3s;
+      background-color: #1a2239;
+    }
+    span.center{
+      background-color: #1a2239;
+      display : block;
+      position: absolute;
+      top:50%; left:50%;
+      width:85%; height:85%;
+      border-radius: 50%;
+      text-align:center; line-height: 66px;
+      font-size:30px;
+      color: #a9b7d0;
+      transform: translate(-50%, -50%);
+    }
 </style>
 
 <div class="pcoded-content">
   <div class="pcoded-inner-content">
-    <!-- [ breadcrumb ] start -->
-
-    <!-- [ breadcrumb ] end -->
     <div class="main-body">
       <div class="page-wrapper">
-        <!-- [ Main Content ] start -->
         <div class="row">
-          <!--[ daily sales section ] start-->
           <div class="col-md-6 col-xl-4">
             <div class="card daily-sales">
               <div class="card-header">
-                <h5>Factory</h5>
+                <h5 style="color: #a9b7d0;">Factory</h5>
               </div>
               <div class="card-block">
-
-                <div class="row d-flex align-items-center">
+                <div class="row d-flex align-items-center" style="max-width: 1000px; max-height: 1000px; overflow: scroll;">
                   <div class="col-9">
                     <h3 class="f-w-300 d-flex align-items-center m-b-0">
-                      여기에 현장 정보가 올라갈겁니다.<br />
-                      {{ contents.company_name | safe }}
+                      현장 정보 <br /><br />
                     </h3>
-                    <div style="height: 100%; display: flex; justify-content:center" class="row d-flex align-items-center">
-                        <div style="border-radius: 10px;border: 1px solid black; text-align: center;" class="mb-3 col-9">
-                            <span style="font-size:100px" class="material-icons">priority_high</span>
-                            <p>reshenie 1공장</p>
-                            <p>설비에 문제가 발생했습니다.</p>
-                        </div>
+                    <div class="row d-flex align-items-center" style="height: 100%; display: flex; justify-content:center" class="row d-flex align-items-center">
+                        {% if not viewer.section_move %}
+                            {% factory_data_view_point contents.view_point as get_factory %}
+                            {% for factory_name, factory_img_url in get_factory.items %}
+                                <div style="position: relative">
+                                    {% if factory_name %}
+                                        <p style="text-align: center; margin: 0 auto; padding: 10px 10px 10px 10px;">{{ factory_name }}</p>
+                                        <img style="width: 300px; height: 300px; padding: 10px 10px 10px 10px;" src="{{ factory_img_url }}" alt="{{ factory_name }}">
+                                        <br />
+                                    {% else %}
+                                        <div style="border-radius: 10px; border: 1px solid black; text-align: center;" class="mb-3 col-9">
+                                            <span style="font-size:100px" class="material-icons">priority_high</span>
+                                            <p>reshenie 1공장</p>
+                                            <p>설비에 문제가 발생했습니다.</p>
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            {% endfor %}
+                        {% elif viewer.section_move %}
+                            {% factory_data_view_point viewer.view_point as get_factory %}
+                            {% for factory_name, factory_img_url in get_factory.items %}
+                                <div style="position: relative">
+                                    {% if factory_name %}
+                                        <p style="text-align: center; margin: 0 auto; padding: 10px 10px 10px 10px;">{{ factory_name }}</p>
+                                        <img style="width: 300px; height: 300px; padding: 10px 10px 10px 10px;" src="{{ factory_img_url }}" alt="{{ factory_name }}">
+                                        <br />
+                                    {% else %}
+                                        <div style="border-radius: 10px; border: 1px solid black; text-align: center;" class="mb-3 col-9">
+                                            <span style="font-size:100px" class="material-icons">priority_high</span>
+                                            <p>reshenie 1공장</p>
+                                            <p>설비에 문제가 발생했습니다.</p>
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            {% endfor %}
+                        {% endif %}
                     </div>
                   </div>
                 </div>
-
-{#                {% if company_info %}#}
-{#                    {% for company in company_info %}#}
-{#                    <h2> {{ company.company_name }}</h2>#}
-{#                    {% endfor %}#}
-{#                {% endif %}#}
               </div>
             </div>
           </div>
-          <!--[ daily sales section ] end-->
-          <!--[ Monthly  sales section ] starts-->
-          <div class="col-md-6 col-xl-7">
+          <div class="col-md-6 col-xl-4">
             <div class="card Monthly-sales">
               <div class="card-header">
-                <h5>Machines</h5>
+                <h5 style="color: #a9b7d0;">Machines</h5>
               </div>
               <div class="card-block">
-                <h3 class="f-w-300 d-flex align-items-center m-b-0">
-                     여기에 설비 정보가 올라갈 예정임<br />
-                    {{ contents.machine_name | safe }}
-                </h3>
-                <div id="machine_list" style="height: 100%; display: flex; justify-content:center" class="row d-flex align-items-center">
-                    {% for machine in contents.machine_names %}
-                        <div style="border-radius: 10px; float:left; border: 1px solid black; text-align: center;" class="m-4 col-5">
-                            <span style="font-size:100px" class="material-icons">priority_high</span>
-                            <p>{{ machine }}</p>
-                            <p>센서를 확인해 주세요</p>
-                        </div>
-                    {% endfor %}
+                <div class="row d-flex align-items-center" style="max-width: 1000px; max-height: 1000px; overflow: scroll;">
+                  <div class="col-9">
+                    <h3 class="f-w-300 d-flex align-items-center m-b-0" >
+                        설비 정보 <br /><br />
+                    </h3>
+                    <div id="machine_list" style="height: 100%; display: flex; justify-content:center" class="row d-flex align-items-center">
+                        {% if not viewer.section_move %}
+                            {% machine_data_view_point contents.view_point as get_machine %}
+                            {% for machine_name, machine_img_url in get_machine.items %}
+                                <p style="text-align: center; margin: 0 auto; padding: 10px 10px 10px 10px;">{{ machine_name }}</p>
+                                <img style="width: 300px; height: 300px; padding: 10px 10px 10px 10px;" src="{{ machine_img_url }}" alt="{{ machine_name }}">
+                            {% endfor %}
+                        {% elif viewer.section_move %}
+                            {% machine_data_view_point viewer.view_point as get_machine %}
+                            {% for machine_name, machine_img_url in get_machine.items %}
+                                <p style="text-align: center; margin: 0 auto; padding: 10px 10px 10px 10px;">{{ machine_name }}</p>
+                                <img style="width: 300px; height: 300px; padding: 10px 10px 10px 10px;" src="{{ machine_img_url }}" alt="{{ machine_name }}">
+                            {% endfor %}
+                        {% else %}
+                            {% machine_data_view_point contents.view_point as get_machine %}
+                            {% for machine_name, machine_img_url in get_machine.items %}
+                                <div style="border-radius: 10px; float:left; border: 1px solid black; text-align: center;" class="mb-3 col-9">
+                                    <span style="font-size:100px" class="material-icons">priority_high</span>
+                                    <p>{{ machine_name }}</p>
+                                    <p>센서를 확인해 주세요</p>
+                                </div>
+                            {% endfor %}
+                        {% endif %}
+                    </div>
+                  </div>
                 </div>
-{#                {% if machine_info %}#}
-{#                    {% for machine in machine_info %}#}
-{#                    <h2> {{ machine.machine_name }}</h2>#}
-{#                    {% endfor %}#}
-{#                {% endif %}#}
               </div>
             </div>
           </div>
-          <div class="col-md-12 col-xl-12">
+          <div class="col-xl-3 col-md-3">
             <div class="card card-event">
               <div class="card-header">
-                <h5>Sensor</h5>
+                <h5 style="color: #a9b7d0;">Sensor</h5>
               </div>
               <div class="card-block">
-                <h3 class="f-w-300 d-flex align-items-center m-b-0">
-                     여기에 센서 리스트 배치될 예정<br />
-                </h3>
-                <div style="height: 100%; justify-content:center" class="row d-flex align-items-center" id="sensor_list">
-                    <div id="sensors" style="display: flex">
-                        <div id="sensor_img">
-                            {% for sensor in contents.sensor_tags %}
-                                <div style="border-radius: 10px; border: 1px solid black; text-align: center;" class="m-1 col-10">
-                                    <span style="font-size:100px;" class="material-icons-outlined">sensors</span>
-                                    <p>{{ sensor }}</p>
-                                    <p>센서가 정상입니다.</p>
-                                </div>
-                            {% endfor %}
+                  <div class="row d-flex align-items-center" style="max-width: 1000px; max-height: 1000px; overflow: scroll;">
+                    <div class="col-9">
+                        <h3 class="f-w-300 d-flex align-items-center m-b-0" >
+                            센서 이미지 <br /><br />
+                        </h3>
+                        <div style="height: 100%; justify-content:center" id="sensor_list" class="row d-flex align-items-center">
+                            {% if not viewer.section_move %}
+                                {% sensor_img_view_point contents.view_point as get_sensor %}
+                                {% for sensor_name, sensor_img_url in get_sensor.items %}
+                                    <p>{{ sensor_name }}</p>
+                                    <div class="sensor_status">
+                                    </div>
+                                    <div class="sensor_img">
+                                        <img style="width: 300px; height: 300px;" src="{{ sensor_img_url }}" alt="{{ sensor_name }}">
+                                    </div>
+                                {% endfor %}
+                            {% elif viewer.section_move %}
+                                {% sensor_img_view_point viewer.view_point as get_sensor %}
+                                {% for sensor_name, sensor_img_url in get_sensor.items %}
+                                    <p>{{ sensor_name }}</p>
+                                    <div class="sensor_status">
+                                    </div>
+                                    <div class="sensor_img">
+                                        <img style="width: 300px; height: 300px;" src="{{ sensor_img_url }}" alt="{{ sensor_name }}">
+                                    </div>
+                                {% endfor %}
+                            {% endif %}
                         </div>
-                        <div id="sensor_graph">
-                            {% for sensor in contents.sensor_tags %}
-                                <div>
-                                    <canvas id="xyzAxisGraph" style="width: auto; height: auto;"></canvas>
-                                </div>
-                            {% endfor %}
+                        <div class="col-auto">
                         </div>
                     </div>
-                </div>
-                <div class="col-auto">
-                </div>
+                  </div>
               </div>
             </div>
           </div>
-          <div class="col-xl-10 col-md-6">
+          <div class="col-xl-9 col-md-9">
             <div class="card Recent-Users">
               <div class="card-header">
-                <h5>Meta</h5>
+                <h5 style="color: #a9b7d0;">Data</h5>
               </div>
               <div class="card-block">
-{#                <h3 class="f-w-300 d-flex align-items-center m-b-0">#}
-{#                     미터기 등장<br />#}
-{#                </h3>#}
-                <div id="wrapper">
-                    <div id="termometer">
-                        <div id="temperature" style="height:50%" data-value="0°C"></div>
-                        <div id="graduations"></div>
-                    </div>
-                    <div id="playground">
-                        <div id="range">
-                            <label for="minTemp"></label><input id="minTemp" type="text" value="-100">
-                            <label>
-                                <input type="range" min="-100" max="100" value="">
-                            </label>
-                            <label for="maxTemp"></label><input id="maxTemp" type="text" value="100">
+{#                  <div style="height: 100%; justify-content:center; display: flex;" class="row d-flex align-items-center" id="data_list">#}
+{#                  </div>#}
+                  <div class="row d-flex align-items-center" style="width: 1000px; max-height: 1000px; overflow: scroll;">
+                    <div class="col-9">
+                        <h3 class="f-w-300 d-flex align-items-center m-b-0" >
+                            센서 데이터 <br /><br />
+                        </h3>
+                        <div id="datas">
+                            <div id="sensor_datas" style="display: flex; flex-wrap: wrap;">
+                                {% if not viewer.section_move %}
+                                    {% sensor_data_view_point contents.view_point as get_sensor %}
+                                    {% for index, values in get_sensor.items %}
+                                        <div class="sensor_board_column" style="display:flex">
+{#                                            <input type="checkbox" id="{{ values }}_expand-toggle" />#}
+                                            <div class="sensor_temp" id="{{ values }}_temp">
+{#                                                <label for="expand-toggle" id="expand-btn">#}
+{#                                                </label>#}
+                                                <div class="termometer">
+                                                    <div id="{{ values }}_temperature" class="temperature" style="height:50%" data-value="0°C"></div>
+                                                    <div class="graduations"></div>
+                                                </div>
+                                                <div class="playground">
+                                                    <p id="{{ values }}_unit" class="unit">온도 C°</p>
+                                                </div>
+                                            </div>
+                                            <div class="sensor_graph">
+                                                <canvas id="{{ values }}_boardGraph" style="position: relative; overflow: scroll; width: 100%; height: 100%;"></canvas>
+                                            </div>
+                                        </div>
+                                        <div class="sensor_column" style="display:flex">
+                                            <div class="sensor_gauge col-2">
+{#                                                <div class="gauge">#}
+{#                                                    <div class="gauge_body">#}
+{#                                                        <div id="gauge_{{ values }}_fill" class="gauge_fill"></div>#}
+{#                                                        <div id="gauge_{{ values }}_cover" class="gauge_cover"></div>#}
+{#                                                    </div>#}
+{#                                                </div>#}
+                                                <div class="pie-chart pie-chart1"><span class="center">80%</span></div>
+                                                <div class="gauge_measurement_timebox" style="position: relative; margin: 10px 0 35px 0; padding: 100% 20px 15px 15px; width: 150px; height: 100%">
+                                                    <div id="gauge_{{ values }}_time" class="gauge_measurement_time">
+                                                            <p id="{{ values }}_time">현재 시간 : </p>
+                                                            {% sensor_init_data index as get_sensor_data %}
+                                                           <p id="{{ values }}_measurement_start_time">{{ get_sensor_data.Measurement_Start_Time }}</p>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="sensor_graph">
+                                                <canvas id="{{ values }}_xyzAxisGraph" style="overflow: scroll; width: 100%; height: 100%;"></canvas>
+                                            </div>
+                                        </div>
+                                    {% endfor %}
+                                {% elif viewer.section_move %}
+                                    {% sensor_data_view_point viewer.view_point as get_sensor %}
+                                    {% for index, values in get_sensor.items %}
+                                        <div class="sensor_board_column" style="display:flex">
+{#                                            <input type="checkbox" id="{{ values }}_expand-toggle" />#}
+                                            <div class="sensor_temp" id="{{ values }}_temp">
+{#                                                <label for="expand-toggle" id="expand-btn">#}
+{#                                                </label>#}
+                                                <div class="termometer">
+                                                    <div id="{{ values }}_temperature" class="temperature" style="height:50%" data-value="0°C"></div>
+                                                    <div class="graduations"></div>
+                                                </div>
+                                                <div class="playground">
+                                                    <p id="{{ values }}_unit" class="unit">온도 C°</p>
+                                                </div>
+                                            </div>
+                                            <div class="sensor_graph">
+                                                <canvas id="{{ values }}_boardGraph" style="position: relative; overflow: scroll; width: 100%; height: 100%;"></canvas>
+                                            </div>
+                                        </div>
+                                        <div class="sensor_column" style="display:flex">
+                                            <div class="sensor_gauge col-2">
+{#                                                <div class="gauge">#}
+{#                                                    <div class="gauge_body">#}
+{#                                                        <div id="gauge_{{ values }}_fill" class="gauge_fill"></div>#}
+{#                                                        <div id="gauge_{{ values }}_cover" class="gauge_cover"></div>#}
+{#                                                    </div>#}
+{#                                                </div>#}
+                                                    <div class="pie-chart pie-chart1"><span class="center">80%</span></div>
+                                                <div>
+
+                                                </div>
+                                                <div class="gauge_measurement_timebox" style="position: relative; margin: 10px 0 35px 0; padding: 100% 20px 15px 15px; width: 150px; height: 100%">
+                                                    <div id="gauge_{{ values }}_time" class="gauge_measurement_time">
+                                                        <p id="{{ values }}_time">현재 시간 : </p>
+                                                        {% sensor_init_data index as get_sensor_data %}
+                                                        <p id="{{ values }}_measurement_start_time">{{ get_sensor_data.Measurement_Start_Time }}</p>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="sensor_graph">
+                                                <canvas id="{{ values }}_xyzAxisGraph" style="overflow: scroll; width: 100%; height: 100%;"></canvas>
+                                            </div>
+                                        </div>
+                                    {% endfor %}
+                                {% endif %}
+                            </div>
                         </div>
-                        <p id="unit">온도 C°</p>
                     </div>
-                </div>
+                  </div>
               </div>
             </div>
           </div>
@@ -211,111 +452,553 @@
 
 <div>
     <script>
-        const chart_xyz = {
-             type: 'line',
-             data: {
-                 labels: {{ contents.BarPlot_XYZ_Time  | safe }},
-                 datasets: [
-                     {
-                         label: 'Acceleration XYZ 축 rms 값',
-                         backgroundColor: {{ contents.XYZBackgroundColor | safe }},
-                         borderColor: {{ contents.XYZBorderColor | safe }},
-                         data: {{ contents.BarPlot_XYZ_RMS_Values | safe }},
-                         fill: false
-                     }
-                 ]
-             },
-             options: {
-                 scales: {
-                    y: {
-                        ticks: {
-                            beginAtZero: false,
-                            //stepSize: 0.05
-                        },
-                        title: {
-                            display: true,
-                            labelString: 'Acceleration [g]'
-                        }
-                    },
-                    x: {
-                        ticks: {
-                            beginAtZero: true,
-                            //stepSize: 0.5
-                            callback: function (value, index, values) {
-                                const rms_value = chart_xyz['data']['labels'];
-                                let precision = Number((Math.abs(rms_value[index]) * 100).toPrecision(21));
-                                let converter = Math.round(precision) / 100 * Math.sign(rms_value[index]);
-                                // console.log('1 : ' + converter)
+        let firstViewer;
+        let sensor_name_list = [];
+        let index = [];
+        const date = new Date();
+        let currentTime = date.toLocaleTimeString();
 
-                                if (60.00 <= converter){
-                                    precision = Number((Math.abs(rms_value[index]) * 100).toPrecision(21));
-                                    converter = Math.round(precision) / 60 * Math.sign(rms_value[index])
-                                   //  console.log('2 : ' + converter)
+        let n = 0;
 
-                                    if (3600.00 <= converter) {
-                                        precision = Number((Math.abs(rms_value[index]) * 100).toPrecision(21));
-                                        converter = Math.round(precision) / 3600 * Math.sign(rms_value[index])
-                                        // console.log('3 : ' + converter)
-
-                                        return '+ ' + Math.round(converter) / 100 * Math.sign(rms_value[index]) + ' 시간';
+        // 처음 결과 및 사업 참여 회사 개수에 따른 인덱싱
+        {% if not viewer.section_move %}
+            firstViewer = {{ contents.view_point }}
+            {% sensor_data_view_point contents.view_point as get_sensor %}
+                {% for sensor_id, sensor_tag in get_sensor.items %}
+                    {% sensor_init_data sensor_id as get_sensor_data %}
+                        const chart_xyz_{{ sensor_id }} = {
+                            type: 'line',
+                            data: {
+                                labels: {{ get_sensor_data.BarPlot_XYZ_Time  | safe }},
+                                datasets: [
+                                    {
+                                        label: 'rms [g]',
+                                        backgroundColor: {{ get_sensor_data.XYZBackgroundColor | safe }},
+                                        borderColor: {{ get_sensor_data.XYZBorderColor | safe }},
+                                        data: {{ get_sensor_data.BarPlot_XYZ_RMS_Values | safe }},
+                                        fill: false
                                     }
+                                ]
+                            },
+                            options: {
+                                scales: {
+                                    y: {
+                                        ticks: {
+                                            beginAtZero: false,
+                                            //stepSize: 0.05
+                                        },
+                                        title: {
+                                            display: true,
+                                            labelString: 'rms [g]'
+                                        }
+                                    },
+                                    x: {
+                                        ticks: {
+                                            beginAtZero: true,
+                                            //stepSize: 0.5
+                                            callback: function (value, index, values) {
+                                                const rms_value = chart_xyz_{{ sensor_id }}['data']['labels'];
+                                                let precision = Number((Math.abs(rms_value[index]) * 100).toPrecision(21));
+                                                let converter = Math.round(precision) / 100 * Math.sign(rms_value[index]);
+                                                // console.log('1 : ' + converter)
 
-                                    return '+ ' + Math.round(converter) / 100 * Math.sign(rms_value[index]) + ' 분';
+                                                if (60.00 <= converter){
+                                                    precision = Number((Math.abs(rms_value[index]) * 100).toPrecision(21));
+                                                    converter = Math.round(precision) / 60 * Math.sign(rms_value[index])
+                                                   //  console.log('2 : ' + converter)
 
+                                                    if (3600.00 <= converter) {
+                                                        precision = Number((Math.abs(rms_value[index]) * 100).toPrecision(21));
+                                                        converter = Math.round(precision) / 3600 * Math.sign(rms_value[index])
+                                                        // console.log('3 : ' + converter)
+
+                                                        return '+ ' + Math.round(converter) / 100 * Math.sign(rms_value[index]) + ' 시간';
+                                                    }
+
+                                                    return '+ ' + Math.round(converter) / 100 * Math.sign(rms_value[index]) + ' 분';
+
+                                                }
+
+                                                return '+ ' + converter + ' 초';
+                                            }
+                                        },
+                                        title: {
+                                            display: true,
+                                            labelString: 'Time [s]'
+                                        }
+                                    }
+                                },
+                                animation: {
+                                    duration: 1,
+                                    onComplete: function (){
+                                        const chartInstance = this.chart, ctx = ctx_xyz_{{ sensor_id }};
+                                        ctx.font = Chart.helpers.fontString(Chart.defaults.font.size,
+                                                                            Chart.defaults.font.style,
+                                                                            Chart.defaults.font.family);
+                                        ctx.fillStyle = "purple";
+                                        ctx.textAlign = "center";
+                                        ctx.textBaseline = "bottom";
+                                    }
                                 }
-
-                                return '+ ' + converter + ' 초';
                             }
-                        },
-                        title: {
-                            display: true,
-                            labelString: 'Time [s]'
-                        }
-                    }
-                 },
-                 animation: {
-                    duration: 1,
-                    onComplete: function (){
-                        const chartInstance = this.chart, ctx = ctx_xyz;
-                        ctx.font = Chart.helpers.fontString(Chart.defaults.font.size,
-                                                            Chart.defaults.font.style,
-                                                            Chart.defaults.font.family);
-                        ctx.fillStyle = "purple";
-                        ctx.textAlign = "center";
-                        ctx.textBaseline = "bottom";
-                    }
-                }
-             }
-        }
-        const ctx_xyz = document.getElementById('xyzAxisGraph').getContext('2d');
-        window.myLine_xyz = new Chart(ctx_xyz, chart_xyz);
-    </script>
-    <script>
-        // initialize
-        let X_flag = 0;
-        let Y_flag = 0;
-        let Z_flag = 0;
-        let XYZ_flag = 0;
+                         }
+
+                        const ctx_xyz_{{ sensor_id }} = document.getElementById("{{ sensor_tag | safe }}" + "_xyzAxisGraph").getContext('2d');
+                        {#console.log("ctx_xyz : ", ctx_xyz_{{ sensor_id }})#}
+                        window.myLine_xyz_{{ sensor_id }} = new Chart(ctx_xyz_{{ sensor_id }}, chart_xyz_{{ sensor_id }});
+
+                        const chart_board_{{ sensor_id }} = {
+                            type: 'line',
+                            data: {
+                                labels: {{ get_sensor_data.BarPlot_Board_Time  | safe }},
+                                datasets: [
+                                    {
+                                        label: 'Temperature [°C]',
+                                        backgroundColor: {{ get_sensor_data.BarPlot_Board_Temperature_BackColor | safe }},
+                                        borderColor: {{ get_sensor_data.BarPlot_Board_Temperature_BorderColor | safe }},
+                                        data: {{ get_sensor_data.my_board_temperature | safe }},
+                                        fill: false
+                                    }
+                                ]
+                            },
+                            options: {
+                                scales: {
+                                    y: {
+                                        ticks: {
+                                            beginAtZero: false,
+                                        },
+                                        title: {
+                                            display: true,
+                                            labelString: 'Temperature [°C]'
+                                        }
+                                    },
+                                    x: {
+                                        ticks: {
+                                            beginAtZero: true,
+                                            //stepSize: 0.05
+                                            callback: function (value, index, values) {
+                                                const rms_value = chart_board_{{ sensor_id }}['data']['labels'];
+                                                let precision = Number((Math.abs(rms_value[index]) * 100).toPrecision(21));
+                                                let converter = Math.round(precision) / 100 * Math.sign(rms_value[index]);
+                                                // console.log('1 : ' + converter)
+
+                                                if (60.00 <= converter){
+                                                    precision = Number((Math.abs(rms_value[index]) * 100).toPrecision(21));
+                                                    converter = Math.round(precision) / 60 * Math.sign(rms_value[index])
+                                                   //  console.log('2 : ' + converter)
+
+                                                    if (3600.00 <= converter) {
+                                                        precision = Number((Math.abs(rms_value[index]) * 100).toPrecision(21));
+                                                        converter = Math.round(precision) / 3600 * Math.sign(rms_value[index])
+                                                        // console.log('3 : ' + converter)
+
+                                                        return '+ ' + Math.round(converter) / 100 * Math.sign(rms_value[index]) + ' 시간';
+                                                    }
+
+                                                    return '+ ' + Math.round(converter) / 100 * Math.sign(rms_value[index]) + ' 분';
+
+                                                }
+
+                                                return '+ ' + converter + ' 초';
+                                            }
+                                        },
+                                        title: {
+                                            display: true,
+                                            labelString: 'Time [s]'
+                                        }
+                                    }
+                                },
+                                animation: {
+                                    duration: 1,
+                                    onComplete: function (){
+                                        const chartInstance = this.chart, ctx = ctx_board_{{ sensor_id }};
+                                        ctx.font = Chart.helpers.fontString(Chart.defaults.font.size,
+                                                                            Chart.defaults.font.style,
+                                                                            Chart.defaults.font.family);
+                                        ctx.fillStyle = "purple";
+                                        ctx.textAlign = "center";
+                                        ctx.textBaseline = "bottom";
+                                    }
+                                }
+                            }
+                         }
+
+                        let ctx_board_{{ sensor_id }} = document.getElementById("{{ sensor_tag | safe }}" + "_boardGraph").getContext('2d');
+                        {#console.log("ctx_board : ", ctx_board_{{ sensor_id }})#}
+                        window.myLine_board_{{ sensor_id }} = new Chart(ctx_board_{{ sensor_id }}, chart_board_{{ sensor_id }});
+
+                        n++;
+                        index.push({{ sensor_id | safe }})
+                        sensor_name_list.push("{{ sensor_tag | safe }}")
+                {% endfor %}
+        {% elif viewer.section_move %}
+            {% sensor_data_view_point viewer.view_point as get_sensor %}
+               {% for sensor_id, sensor_tag in get_sensor.items %}
+                    {% sensor_init_data sensor_id as get_sensor_data %}
+                        firstViewer = {{ viewer.view_point }}
+                        const chart_xyz_{{ sensor_id }} = {
+                            type: 'line',
+                            data: {
+                                labels: {{ get_sensor_data.BarPlot_XYZ_Time  | safe }},
+                                datasets: [
+                                    {
+                                        label: 'rms [g]',
+                                        backgroundColor: {{ get_sensor_data.XYZBackgroundColor | safe }},
+                                        borderColor: {{ get_sensor_data.XYZBorderColor | safe }},
+                                        data: {{ get_sensor_data.BarPlot_XYZ_RMS_Values | safe }},
+                                        fill: false
+                                    }
+                                ]
+                            },
+                            options: {
+                                scales: {
+                                    y: {
+                                        ticks: {
+                                            beginAtZero: false,
+                                            //stepSize: 0.05
+                                        },
+                                        title: {
+                                            display: true,
+                                            labelString: 'rms [g]'
+                                        }
+                                    },
+                                    x: {
+                                        ticks: {
+                                            beginAtZero: true,
+                                            //stepSize: 0.5
+                                            callback: function (value, index, values) {
+                                                const rms_value = chart_xyz_{{ sensor_id }}['data']['labels'];
+                                                let precision = Number((Math.abs(rms_value[index]) * 100).toPrecision(21));
+                                                let converter = Math.round(precision) / 100 * Math.sign(rms_value[index]);
+                                                // console.log('1 : ' + converter)
+
+                                                if (60.00 <= converter){
+                                                    precision = Number((Math.abs(rms_value[index]) * 100).toPrecision(21));
+                                                    converter = Math.round(precision) / 60 * Math.sign(rms_value[index])
+                                                   //  console.log('2 : ' + converter)
+
+                                                    if (3600.00 <= converter) {
+                                                        precision = Number((Math.abs(rms_value[index]) * 100).toPrecision(21));
+                                                        converter = Math.round(precision) / 3600 * Math.sign(rms_value[index])
+                                                        // console.log('3 : ' + converter)
+
+                                                        return '+ ' + Math.round(converter) / 100 * Math.sign(rms_value[index]) + ' 시간';
+                                                    }
+
+                                                    return '+ ' + Math.round(converter) / 100 * Math.sign(rms_value[index]) + ' 분';
+
+                                                }
+
+                                                return '+ ' + converter + ' 초';
+                                            }
+                                        },
+                                        title: {
+                                            display: true,
+                                            labelString: 'Time [s]'
+                                        }
+                                    }
+                                },
+                                animation: {
+                                    duration: 1,
+                                    onComplete: function (){
+                                        const chartInstance = this.chart, ctx = ctx_xyz_{{ sensor_id }};
+                                        ctx.font = Chart.helpers.fontString(Chart.defaults.font.size,
+                                                                            Chart.defaults.font.style,
+                                                                            Chart.defaults.font.family);
+                                        ctx.fillStyle = "purple";
+                                        ctx.textAlign = "center";
+                                        ctx.textBaseline = "bottom";
+                                    }
+                                }
+                            }
+                         }
+                        const ctx_xyz_{{ sensor_id }} = document.getElementById("{{ sensor_tag | safe }}" + "_xyzAxisGraph").getContext('2d');
+                        {#console.log("ctx_xyz : ", ctx_xyz_{{ sensor_id }})#}
+                        window.myLine_xyz_{{ sensor_id }} = new Chart(ctx_xyz_{{ sensor_id }}, chart_xyz_{{ sensor_id }});
+
+                        const chart_board_{{ sensor_id }} = {
+                            type: 'line',
+                            data: {
+                                labels: {{ get_sensor_data.BarPlot_Board_Time  | safe }},
+                                datasets: [
+                                    {
+                                        label: 'Temperature [°C]',
+                                        backgroundColor: {{ get_sensor_data.BarPlot_Board_Temperature_BackColor | safe }},
+                                        borderColor: {{ get_sensor_data.BarPlot_Board_Temperature_BorderColor | safe }},
+                                        data: {{ get_sensor_data.my_board_temperature | safe }},
+                                        fill: false
+                                    }
+                                ]
+                            },
+                            options: {
+                                scales: {
+                                    y: {
+                                        ticks: {
+                                            beginAtZero: false,
+                                        },
+                                        title: {
+                                            display: true,
+                                            labelString: 'Temperature [°C]'
+                                        }
+                                    },
+                                    x: {
+                                        ticks: {
+                                            beginAtZero: true,
+                                            //stepSize: 0.05
+                                            callback: function (value, index, values) {
+                                                const rms_value = chart_board_{{ sensor_id }}['data']['labels'];
+                                                let precision = Number((Math.abs(rms_value[index]) * 100).toPrecision(21));
+                                                let converter = Math.round(precision) / 100 * Math.sign(rms_value[index]);
+                                                // console.log('1 : ' + converter)
+
+                                                if (60.00 <= converter){
+                                                    precision = Number((Math.abs(rms_value[index]) * 100).toPrecision(21));
+                                                    converter = Math.round(precision) / 60 * Math.sign(rms_value[index])
+                                                   //  console.log('2 : ' + converter)
+
+                                                    if (3600.00 <= converter) {
+                                                        precision = Number((Math.abs(rms_value[index]) * 100).toPrecision(21));
+                                                        converter = Math.round(precision) / 3600 * Math.sign(rms_value[index])
+                                                        // console.log('3 : ' + converter)
+
+                                                        return '+ ' + Math.round(converter) / 100 * Math.sign(rms_value[index]) + ' 시간';
+                                                    }
+
+                                                    return '+ ' + Math.round(converter) / 100 * Math.sign(rms_value[index]) + ' 분';
+
+                                                }
+
+                                                return '+ ' + converter + ' 초';
+                                            }
+                                        },
+                                        title: {
+                                            display: true,
+                                            labelString: 'Time [s]'
+                                        }
+                                    }
+                                },
+                                animation: {
+                                    duration: 1,
+                                    onComplete: function (){
+                                        const chartInstance = this.chart, ctx = ctx_board_{{ sensor_id }};
+                                        ctx.font = Chart.helpers.fontString(Chart.defaults.font.size,
+                                                                            Chart.defaults.font.style,
+                                                                            Chart.defaults.font.family);
+                                        ctx.fillStyle = "purple";
+                                        ctx.textAlign = "center";
+                                        ctx.textBaseline = "bottom";
+                                    }
+                                }
+                            }
+                         }
+                        let ctx_board_{{ sensor_id }} = document.getElementById("{{ sensor_tag | safe }}" + "_boardGraph").getContext('2d');
+                        {#console.log("ctx_board : ", ctx_board_{{ sensor_id }})#}
+                        window.myLine_board_{{ sensor_id }} = new Chart(ctx_board_{{ sensor_id }}, chart_board_{{ sensor_id }});
+
+                        n++;
+                        index.push({{ sensor_id | safe }})
+                        sensor_name_list.push("{{ sensor_tag | safe }}")
+               {% endfor %}
+        {% endif %}
 
         // asynchronous control
-        async function dataRenderXYZ(XYZRmsData, XYZTimeData){
+        async function dataRenderXYZ(sensorId, sensorTag, XYZRmsData, XYZTimeData, boardData, boardTimeData){
+            let boardRender;
+            let boardTime;
+            let xyzChk;
+            let boardChk;
+            let pushFlag = 1;
 
-            const dataObject_dataset = chart_xyz['data']['datasets'][0]['data']
-            const dataObject_time = chart_xyz['data']['labels']
+            {% if not viewer.section_move %}
+                {% sensor_data_view_point contents.view_point as get_sensor %}
+                    {% for sensor_id, sensor_tag in get_sensor.items %}
+                        xyzChk = document.getElementById("{{ sensor_tag | safe }}" + "_xyzAxisGraph")
+                        if (xyzChk.id === (sensorTag + "_xyzAxisGraph")){
+
+                            if(XYZRmsData !== null){
+                                chart_xyz_{{ sensor_id }}['data']['datasets'][0]['data'] = XYZRmsData
+                                chart_xyz_{{ sensor_id }}['data']['labels'] = XYZTimeData
+                            }
+
+                            window.myLine_xyz_{{ sensor_id }}.update()
+                        }
+
+                        boardChk = document.getElementById("{{ sensor_tag | safe }}" + "_boardGraph")
+                        if (boardChk.id === (sensorTag + "_boardGraph")){
+                            {#console.log('board id check : ', boardChk.id)#}
+
+                            {#boardRender = chart_board_{{ sensor_id }}['data']['datasets'][0]['data'];#}
+                            {#boardTime = chart_board_{{ sensor_id }}['data']['labels']#}
+
+                            {#if (pushFlag > 24){#}
+                            {#    boardRender.shift()#}
+                            {#    boardTime.shift()#}
+                            {#    boardRender.push(boardData)#}
+                            {#    boardTime.push(boardTimeData)#}
+                            {# }#}
+                            {#else {#}
+                            {#    boardRender.push(boardData)#}
+                            {#    boardTime.push(boardTimeData)#}
+                            {#    pushFlag++;#}
+                            {# }#}
+
+                            if(boardData !== null){
+                                chart_board_{{ sensor_id }}['data']['datasets'][0]['data'] = boardData
+                                chart_board_{{ sensor_id }}['data']['labels'] = boardTimeData
+                            }
+
+                            window.myLine_board_{{ sensor_id }}.update()
+                        }
+                    {% endfor %}
+                {% elif viewer.section_move %}
+                    {% sensor_data_view_point viewer.view_point as get_sensor %}
+                    {% for sensor_id, sensor_tag in get_sensor.items %}
+                        xyzChk = document.getElementById("{{ sensor_tag | safe }}" + "_xyzAxisGraph")
+                        if (xyzChk.id === (sensorTag + "_xyzAxisGraph")){
+
+                            if(XYZRmsData !== null){
+                                chart_xyz_{{ sensor_id }}['data']['datasets'][0]['data'] = XYZRmsData
+                                chart_xyz_{{ sensor_id }}['data']['labels'] = XYZTimeData
+                            }
+
+                            window.myLine_xyz_{{ sensor_id }}.update()
+                        }
+
+                        boardChk = document.getElementById("{{ sensor_tag | safe }}" + "_boardGraph")
+                        if (boardChk.id === (sensorTag + "_boardGraph")){
+                            {#console.log('board id check : ', boardChk.id)#}
+
+                            {#boardRender = chart_board_{{ sensor_id }}['data']['datasets'][0]['data'];#}
+                            {#boardTime = chart_board_{{ sensor_id }}['data']['labels']#}
+
+                            {#if (pushFlag > 24){#}
+                            {#    boardRender.shift()#}
+                            {#    boardTime.shift()#}
+                            {#    boardRender.push(boardData)#}
+                            {#    boardTime.push(boardTimeData)#}
+                            {# }#}
+                            {#else {#}
+                            {#    boardRender.push(boardData)#}
+                            {#    boardTime.push(boardTimeData)#}
+                            {#    pushFlag++;#}
+                            {# }#}
+
+                            if(boardData !== null){
+                                chart_board_{{ sensor_id }}['data']['datasets'][0]['data'] = boardData
+                                chart_board_{{ sensor_id }}['data']['labels'] = boardTimeData
+                            }
+
+                            window.myLine_board_{{ sensor_id }}.update()
+                        }
+                        n++;
+                    {% endfor %}
+            {% endif %}
 
             // queue
-            if (XYZTimeData.length !== 0) {
-                dataObject_dataset.shift()
-                dataObject_time.shift()
-
-                dataObject_dataset.push(XYZRmsData)
-                dataObject_time.push(XYZTimeData)
-            }
-            window.myLine_xyz.update()
+            {#if (XYZTimeData !== dataObject_dataset_{{ index }}.value) {#}
+            {#    dataObject_dataset_{{ index }}.shift()#}
+            {#    dataObject_time_{{ index }}.shift()#}
+            {##}
+            {#    dataObject_dataset_{{ index }}.push(XYZRmsData)#}
+            {#    dataObject_time_{{ index }}.push(XYZTimeData)#}
+            {#    dataObject_dataset_{{ index }}.value = XYZRmsData#}
+            {#    dataObject_time_{{ index }}.value = XYZTimeData#}
+            {# }#}
         }
 
-        const temp = {{ contents.my_board_temperature | safe }}
-        console.log("현재 온도 : ", temp)
+        {#//  setGaugeValue 함수 매개변수에 value 에 게이지 값을 넣어주면 됩니다.#}
+        {#async function setGaugeValue(gaugeFillBox, gaugeCoverBox, RMS, length, time) {#}
+        {#    // 처음 화면에 사용자가 접속할 경우#}
+        {#    if (gaugeFillBox.id && gaugeCoverBox.id){#}
+        {#        if (RMS[length] < 0) {#}
+        {#            return;#}
+        {#        }#}
+        {#        if ((RMS[length] < 0.7)){#}
+                    {#console.log(RMS[length])#}
+        {#            gaugeFillBox.style.background = "#009578";#}
+        {#        } else if (RMS[length] < 1.5){#}
+                    {#console.log(RMS[length])#}
+        {#            gaugeFillBox.style.background = "#958600";#}
+        {#        }else if (1.5 <= RMS[length]){#}
+                    {#console.log(RMS[length])#}
+        {#            gaugeFillBox.style.background = "#FF0000";#}
+        {#        }#}
+        {#        const temp = RMS[length] > 2 ? 2 : RMS[length]#}
+        {#        gaugeFillBox.style.transform = `rotate(${#}
+        {#            temp / 4 //게이지가 채워 지는 부분 반원을 그리기 위해 2를 나눠줌#}
+        {#        }turn)`;#}
+        {#        const m = Number((Math.abs(RMS[length]).toPrecision(21)));#}
+        {#        RMS[length] = Math.round(m * 100) / 100 * Math.sign(RMS[length])#}
+                {#console.log(m)#}
+        {#        gaugeCoverBox.textContent = `${RMS[length]}`;#}
+        {##}
+        {#        const sensor_time = document.getElementById(gaugeFillBox.id.slice(6, -5) + "_time")#}
+        {#        const measurement_time = document.getElementById(gaugeFillBox.id.slice(6, -5) + "_measurement_start_time")#}
+        {#        if (RMS[length]  !== 0){#}
+        {#            sensor_time.innerHTML = "측정 시간 : "#}
+        {#            measurement_time.innerHTML = time#}
+        {#        }#}
+        {##}
+        {#    }else{#}
+        {#        const gaugeFillBoxUpdate = document.getElementById("gauge_" + gaugeFillBox + "_fill");#}
+        {#        const gaugeCoverBoxUpdate = document.getElementById("gauge_" + gaugeCoverBox + "_cover");#}
+                {#console.log(RMS[length])#}
+        {#        if (RMS[length] < 0) {#}
+        {#            return;#}
+        {#        }#}
+        {#        if (RMS[length] < 0.7){#}
+                    {#console.log(RMS[length])#}
+        {#            gaugeFillBoxUpdate.style.background = "#009578";#}
+        {#         }#}
+        {#        if (RMS[length] < 1.5){#}
+                    {#console.log(RMS[length])#}
+        {#            gaugeFillBoxUpdate.style.background = "#958600";#}
+        {#        }#}
+        {#        if (1.5 <= RMS[length]){#}
+                    {#console.log(RMS[length])#}
+        {#            gaugeFillBoxUpdate.style.background = "#FF0000";#}
+        {#        }#}
+        {#        const temp = RMS[length] > 2 ? 2 :RMS[length]#}
+        {#        gaugeFillBoxUpdate.style.transform = `rotate(${#}
+        {#            temp / 4 //게이지가 채워 지는 부분 반원을 그리기 위해 2를 나눠줌#}
+        {#        }turn)`;#}
+        {#        const m = Number((Math.abs(RMS[length]).toPrecision(21)));#}
+        {#        RMS[length] = Math.round(m * 100) / 100 * Math.sign(RMS[length])#}
+                {#console.log(m)#}
+        {#        if (!isNaN(RMS[length])){#}
+        {#            gaugeCoverBoxUpdate.textContent = `${RMS[length]}`;#}
+        {#        }#}
+        {#        else{#}
+        {#            gaugeCoverBoxUpdate.textContent = `0`;#}
+        {#        }#}
+        {##}
+        {#        const sensor_time = document.getElementById(gaugeFillBoxUpdate.id.slice(6, -5) + "_time")#}
+        {#        const measurement_time = document.getElementById(gaugeFillBoxUpdate.id.slice(6, -5) + "_measurement_start_time")#}
+        {#        if (RMS[length]  !== 0){#}
+        {#            sensor_time.innerHTML = "측정 시간 : "#}
+        {#            measurement_time.innerHTML = time#}
+        {#        }#}
+        {#    }#}
+        {##}
+        {# }#}
+
+        {#document.removeEventListener("animationcancel", setGaugeValue, {#}
+        {#      passive: false#}
+        {# });#}
+
+        for (let n in sensor_name_list) {
+
+            //   Interval 함수 사용 타이머 역할
+            //   value 는 실수 단위
+            // const ran = Math.random();
+            // console.log(ran)
+
+            // gauge
+            {#const gaugeFillBox = document.getElementById("gauge_" + sensor_name_list[n] + "_fill");#}
+            {#const gaugeCoverBox = document.getElementById("gauge_" + sensor_name_list[n] + "_cover");#}
+
+            {#setTimeout(() => setGaugeValue(gaugeFillBox, gaugeCoverBox, [0], 0, currentTime), 1000)#}
+        }
 
         // 클릭 시 온도 단위 바뀜
         const units = {
@@ -329,119 +1012,188 @@
             unit: "Celsius"
          };
 
-        // Change min and max temperature values
-
-        const tempValueInputs = document.querySelectorAll("input[type='text']");
-
-        tempValueInputs.forEach((input) => {
-            input.addEventListener("change", (event) => {
-                const newValue = event.target.value;
-
-                if(isNaN(newValue)) {
-                    return input.value = config[input.id];
-                } else {
-                    config[input.id] = input.value;
-                    range[input.id.slice(0, 3)] = config[input.id]; // Update range
-                    return setTemperature(range.value); // Update temperature
-                }
-            });
-         });
-
         // Switch unit of temperature
+        let hiddenBoardGraph = [];
+        const unitP = [];
+        const temperature = [];
+        let currentTemp;
 
-        const unitP = document.getElementById("unit");
+        async function setTemperature(temperature, tempValue) {
+            // 처음 화면에 사용자가 접속할 경우
+            const check_temp = document.getElementById(temperature + "_temperature")
+            if(check_temp === null){
+                console.log("init : ", temperature)
+                console.log("init2 : ",check_temp)
+                temperature.style.height = 50 + "%";
+                temperature.dataset.value = 0 + units[config.unit];
 
-        unitP.addEventListener("click", () => {
-            config.unit = config.unit === "Celsius" ? "Fahrenheit" : "Celsius";
-            unitP.innerHTML = config.unit + ' ' + units[config.unit];
-            return setTemperature(range.value);
-         })
+            }
+            else{
+                console.log("next : ", temperature)
+                console.log("next2 : ", check_temp)
+
+                temperature = document.getElementById(temperature + "_temperature")
+                temperature.style.height = (tempValue[tempValue.length - 1]  - config.minTemp) / (config.maxTemp - config.minTemp) * 100 + "%";
+
+                if (!tempValue){
+                    temperature.dataset.value = 0 + units[config.unit];
+                } else {
+                    temperature.dataset.value = (Math.round(tempValue[tempValue.length - 1] * 10) / 10) + units[config.unit];
+                }
+            }
+        }
+
+
+        for (let n in sensor_name_list){
+            const temperatureID = document.getElementById(sensor_name_list[n] + '_temperature')
+
+            // temp
+            setTimeout(() => setTemperature(temperatureID, 0))
+            unitP.push(sensor_name_list[n] + '_unit')
+            hiddenBoardGraph.push(sensor_name_list[n] + "_temp")
+            console.log("hiddenBoardGraph ", hiddenBoardGraph)
+        }
 
         // Change temperature
-        const range = document.querySelector("input[type='range']");
-        const temperature = document.getElementById("temperature");
-
+        {#const range = document.querySelector("input[type='range']");#}
+        {##}
         {#range.value = temp#}
         {#인쇄하면(pdf 미리보기)#}
         {#print("현재 온도 : ", range.value)#}
 
-        async function setTemperature(tempValue) {
-            if (tempValue === undefined){
-                temperature.style.height = (temp - config.minTemp) / (config.maxTemp - config.minTemp) * 100 + "%";
-                temperature.dataset.value = temp + units[config.unit];
-            }else{
-                range.value = tempValue
-                temperature.style.height = (tempValue - config.minTemp) / (config.maxTemp - config.minTemp) * 100 + "%";
-                temperature.dataset.value = tempValue + units[config.unit];
+        function setClickTemperature(temperature, tempValue) {
+            temperature.style.height = (tempValue - config.minTemp) / (config.maxTemp - config.minTemp) * 100 + "%";
+            temperature.dataset.value = tempValue + units[config.unit];
+        }
+
+        document.addEventListener("click", function (event){
+            if (unitP.includes(event.target.id) === true){
+                config.unit = config.unit === "Celsius" ? "Fahrenheit" : "Celsius";
+                if (config.unit === "Celsius"){
+                    event.target.innerHTML = '온도 ' + ' ' + units[config.unit];
+                }else{
+                    event.target.innerHTML = '화씨 ' + ' ' + units[config.unit];
+                }
+                const target = document.getElementById(event.target.id.slice(0, -5) + "_temperature")
+
+                // temp
+                return setClickTemperature(target, target.dataset.value.slice(0, -2));
             }
+
+            {#if (hiddenBoardGraph.includes(event.target.id) === true){#}
+            {#    console.log("hiddenBoardGraph ", event.target.id)#}
+            {#    const viewBoardGraph = document.getElementById(event.target.id.slice(0, -5) + "_boardGraph")#}
+            {#    console.log("viewBoardGraph ", viewBoardGraph.id)#}
+            {#    viewBoardGraph.style.visibility = "visible"#}
+            {#    viewBoardGraph.style.transform = "translateX(10px)"#}
+            {#    viewBoardGraph.style.transition = "0.3s"#}
+            {# }#}
+        })
+
+        draw(80, '.pie-chart1', '#ccc');
+        draw(50, '.pie-chart2', '#8b22ff');
+        draw(30, '.pie-chart3','#ff0');
+
+        function draw(max, classname, colorname){
+           let i=1;
+            const func = setInterval(function(){
+              if(i<max){
+                  color(i,classname,colorname);
+                  i++;
+              } else{
+                clearInterval(func);
+              }
+            },10);
+        }
+        function color(i, classname,colorname){
+           $(classname).css({
+                "background":"conic-gradient("+colorname+" 0% "+i+"%, #ffffff "+i+"% 100%)"
+           });
         }
 
-        setTemperature(temp)
 
-        {#function setClickTemperature() {#}
-        {#    temperature.style.height = (range.value - config.minTemp) / (config.maxTemp - config.minTemp) * 100 + "%";#}
-        {#    temperature.dataset.value = range.value + units[config.unit];#}
-        {# }#}
 
-        range.addEventListener("input", () => {
-            return setTemperature(range.value);
-        });
-        setTimeout(setTemperature, 1000);
-
-        async function Update(datas){
-            console.log(datas)
-            await dataRenderXYZ(datas[0], datas[1]);
-            await setTemperature(datas[2])
+        function Update(datas){
+            {#console.log(datas)#}
+            const rms_array = []
+            rms_array.push(datas.BarPlot_XYZ_RMS_Values)
+            Promise.all([
+                dataRenderXYZ(datas.sensor_id, datas.sensor_tag, datas.BarPlot_XYZ_RMS_Values, datas.BarPlot_XYZ_Time, datas.BarPlot_Board_Temperature, datas.BarPlot_Board_Time),
+                setTemperature(datas.sensor_tag, datas.BarPlot_Board_Temperature),
+                {#setGaugeValue(datas.sensor_tag, datas.sensor_tag, datas.BarPlot_XYZ_RMS_Values, rms_array.length, datas.Measurement_Start_Time)#}
+            ])
         }
-    </script>
-    <script>
-        const jsonData = JSON.parse(document.getElementById("jsonData").textContent);
-        console.log("jsonData : ", jsonData)
 
-        let sensor_tags = []
-        let i = 0
-        {% for sensor in contents.sensor_tags %}
-            sensor = jsonData.sensor_tags[i]
-            sensor_tags.push(sensor)
-            i++;
-        {% endfor %}
-        const sensor_count = sensor_tags.length
-        console.log('센서 개수 : ', sensor_count)
-
-        const machine_list = document.querySelector('#machine_list')
-        const children = machine_list.querySelectorAll(':scope > div')
-        console.log('children : ', children)
-
-        {#children[0].style.textAlign = "center"#}
-
-    </script>
-    <script>
-        function ajaxTest(){
+        // 처음 접속 시 데이터를 다운받음
+        function main(){
             $.ajax({
                 type: "POST",
                 // 403 forbidden 방지
                 headers: { 'X-CSRFToken': '{{csrf_token}}' },
                 url: "draw/",
                 data: {
-                    'sensor_tag': jsonData.sensor_tags[0]
+                    'sensor_id': index,
+                    {#'sensor_tag': sensor_name_list#}
                 },
                 error: function() {
-                  alert('통신실패!!');
+                  {#alert('통신실패!!');#}
                 },
                 success: function(data) {
-                    const datas = [
-                        data['context'].BarPlot_XYZ_RMS_Values,
-                        data['context'].BarPlot_XYZ_Time,
-                        data['context'].BarPlot_Board_Temperature
-                    ]
-                    console.log(datas)
-                    Update(datas)
+                    for (let k of index){
+                        const datas = data.context.sending[k]
+                        console.log(datas)
+                        {#const datas = [#}
+                        {#    indexing.sensor_id,#}
+                        {#    indexing.sensor_tag,#}
+                        {#    indexing.Measurement_Start_Time,#}
+                        {#    indexing.BarPlot_XYZ_RMS_Values,#}
+                        {#    indexing.BarPlot_XYZ_Time,#}
+                        {#    indexing.BarPlot_XYZ_Kurtosis_Values,#}
+                        {#    indexing.BarPlot_Board_Temperature,#}
+                        {#    indexing.BarPlot_Board_Time,#}
+                        {#]#}
+                        Update(datas)
+                    }
+                }
+            });
+        }
+        {#main()#}
+
+        function ajaxRepeat(){
+            $.ajax({
+                type: "POST",
+                // 403 forbidden 방지
+                headers: { 'X-CSRFToken': '{{csrf_token}}' },
+                url: "draw/",
+                data: {
+                    'sensor_id': index,
+                    {#'sensor_tag': sensor_name_list#}
+                },
+                error: function() {
+                  {#alert('통신실패!!');#}
+                },
+                success: function(data) {
+                    for (let k of index){
+                        const datas = data.context.sending[k]
+                        {#console.log(indexing)#}
+                        {#const datas = [#}
+                        {#    indexing.sensor_id,#}
+                        {#    indexing.sensor_tag,#}
+                        {#    indexing.BarPlot_XYZ_RMS_Values,#}
+                        {#    indexing.BarPlot_XYZ_Time,#}
+                        {#    indexing.BarPlot_XYZ_Kurtosis_Values,#}
+                        {#    indexing.BarPlot_Board_Temperature,#}
+                        {#    indexing.BarPlot_Board_Time,#}
+                        {#    indexing.Measurement_Start_Time,#}
+                        {#]#}
+                        Update(datas)
+                    }
                 }
             });
         }
         playAlert = setInterval(function() {
-            ajaxTest();
-        }, 60000);
+            ajaxRepeat();
+        }, 600000);
     </script>
 </div>
 {% endblock content %}

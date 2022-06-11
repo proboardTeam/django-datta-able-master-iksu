@@ -62,7 +62,6 @@ body {
   font-size: 14px;
   color: #888;
   font-weight: 400;
-  background: #f4f7fa;
   position: relative;
 }
 
@@ -2089,7 +2088,7 @@ p.text-muted {
   transition: all 0.3s ease-in-out;
   -webkit-box-shadow: 1px 0 20px 0 #3f4d67;
   box-shadow: 1px 0 20px 0 #3f4d67;
-  width: 264px;
+  width: 300px;
   height: 100vh;
   top: 0;
   background: #3f4d67;
@@ -2228,6 +2227,14 @@ p.text-muted {
   border-radius: 0;
   position: relative;
 }
+.pcoded-navbar .pcoded-inner-navbar li > div {
+  text-align: left;
+  padding: 20px 15px;
+  margin: 5px 0 0;
+  display: block;
+  border-radius: 0;
+  position: relative;
+}
 .pcoded-navbar .pcoded-inner-navbar li > a .pcoded-mtext {
   position: relative;
 }
@@ -2236,7 +2243,7 @@ p.text-muted {
   padding: 4px 7px;
   margin-right: 7px;
   border-radius: 4px;
-  width: 30px;
+  width: 50px;
   display: -webkit-inline-box;
   display: -ms-inline-flexbox;
   display: inline-flex;
@@ -2332,7 +2339,7 @@ p.text-muted {
   opacity: 0.5;
 }
 .pcoded-navbar .pcoded-submenu {
-  background: #39465e;
+  background: #2d3648;
   padding: 15px 0;
 }
 .pcoded-navbar a {

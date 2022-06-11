@@ -6,17 +6,12 @@ Copyright (c) 2019 - present AppSeed.us
 # Create your views here.
 from django.shortcuts import render, redirect
 from django.contrib.auth import authenticate, login, logout
-from .forms import LoginForm, SignUpForm, DeleteForm
-from django.views.decorators.csrf import csrf_exempt
-from django.http import HttpResponse, JsonResponse
-from rest_framework import status
+from .forms import LoginForm, SignUpForm, UpdateForm, DeleteForm
 from .serializer import RequestSerializer
 from django.db import DatabaseError
-from .models import UserProfile
-from apps.factory.models import CompanyProfile
+from django.contrib.auth.hashers import check_password
 
 
-@csrf_exempt
 def login_view(request):
     form = LoginForm(request.POST or None)
 
@@ -64,7 +59,6 @@ def login_view(request):
         return render(request, "accounts/login.html", {"form": form, "msg": msg})
 
 
-@csrf_exempt
 def register_user(request):
     msg = None
     success = False
@@ -115,7 +109,6 @@ def register_user(request):
 
 
 def logout_view(request):
-
     logout(request)
 
     for key in list(request.session.keys()):
@@ -124,6 +117,39 @@ def logout_view(request):
     login_view(request)
 
     return redirect("/")
+
+
+def account_update_view(request):
+    context = {}
+    form = UpdateForm(request.POST or None)
+    if request.method == "POST" and form.is_valid():
+        username = form.cleaned_data.get("username", "")
+        password = form.cleaned_data.get("password", "")
+        try:
+            user = authenticate(username=username, password=password)
+            if check_password(password, user.password):
+                new_password = form.cleaned_data.get("password1", "")
+                password_confirm = form.cleaned_data.get("password2", "")
+                if new_password == password_confirm:
+                    user.set_password(new_password)
+                    user.save()
+
+                    return redirect("/")
+                else:
+                    msg = "새 비밀번호를 다시 확인해주세요."
+                    return render(request, "accounts/update-account.html", {"form": form, "msg": msg})
+
+        except DatabaseError:
+            msg = "데이터 베이스가 존재하지 않습니다."
+            return render(request, "accounts/update-account.html", {"form": form, "msg": msg})
+
+        except ValueError:
+            msg = "아이디 또는 비밀번호를 잘못 입력하셨습니다."
+            return render(request, "accounts/update-account.html", {"form": form, "msg": msg})
+
+    else:
+        msg = "새로운 비밀번호로 변경하세요."
+        return render(request, "accounts/update-account.html", {"form": form, "msg": msg})
 
 
 def account_close_view(request):
@@ -158,5 +184,3 @@ def account_close_view(request):
     else:
         msg = "탈퇴하시려면 로그인과 비밀번호를 입력해주세요."
         return render(request, "accounts/close-account.html", {"form": form, "msg": msg})
-
-

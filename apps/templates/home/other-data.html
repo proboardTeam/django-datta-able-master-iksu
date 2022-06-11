@@ -327,7 +327,7 @@
                             </div>
                         </div>
                     </div>
-                    <div class="col-xl-9 col-md-5">
+                    <div class="col-xl-12 col-md-12">
                         <div class="card Recent-Users">
                             <div class="card-header">
                                 <h5>Meta</h5>
@@ -387,8 +387,8 @@
 
         const gauge__fill1 = document.querySelector("#gauge_fill1");
         const gauge__fill2 = document.querySelector("#gauge_fill2");
-        const temp = {{ context.BarPlot_Board_Temperatures | safe }};
-        const current_temp = temp[0]
+        const temp = {{ context.BarPlot_Board_Temperature | safe }}
+        const current_temp = temp
         console.log(current_temp)
         let i = 0;
         //  setGaugeValue 함수 매개변수에 value 에 게이지 값을 넣어주면 됩니다.

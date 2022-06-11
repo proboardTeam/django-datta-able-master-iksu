@@ -39,6 +39,8 @@ INSTALLED_APPS = [
     'apps.home',  # Enable the inner home (home)
     'apps.authentication',
     'apps.factory',
+    'apps.protocol',
+    'apps.graph',
 
     'corsheaders',
     'rest_framework',
@@ -162,6 +164,19 @@ STATICFILES_DIRS = (
     os.path.join(CORE_DIR, 'apps/static'),
 )
 
+# # 첨부 파일에 접근할 수 있는 URL 경로
+# MEDIA_URL = ''
+#
+# # 실제 파일이 저장될 경로
+# MEDIA_ROOT = os.path.join(CORE_DIR, 'media/')
+# print(f'MEDIA ROOT : {MEDIA_ROOT}')
 
+SESSION_COOKIE_AGE = 600
+SESSION_SAVE_EVERY_REQUEST = True
+
+# PASSWORD_HASHERS = [
+#     'django.contrib.auth.hashers.ScryptPasswordHasher',
+#     'apps.authentication.hashers.ScryptWrappedPasswordHasher'
+# ]
 #############################################################
 #############################################################
