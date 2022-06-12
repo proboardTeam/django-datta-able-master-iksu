@@ -5,8 +5,6 @@ Copyright (c) 2019 - present AppSeed.us
 import json
 
 from django import template
-from django.contrib.auth.decorators import login_required
-from django.contrib.auth.mixins import LoginRequiredMixin
 from django.http import HttpResponse, HttpResponseRedirect, JsonResponse
 from django.template import loader
 from django.urls import reverse
@@ -20,9 +18,6 @@ from django.db.utils import OperationalError
 from django.contrib.auth.decorators import login_required
 from django.utils.decorators import method_decorator
 
-from apps.factory.serializer import RequestTotalSerializer, RequestServerSerializer, RequestSensorSerializer, \
-    RequestServerQuery, RequestSensorQuery, RequestMachineQuery, RequestMachineSerializer
-from django.views import View
 
 # api ---
 import datetime
@@ -36,6 +31,7 @@ class Index(TemplateView):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
+    # 처음 화면
     def get(self, request, *args, **kwargs):
         try:
             # del request.session["userId"]
@@ -90,8 +86,8 @@ class Index(TemplateView):
                             'sensor_id': sensor_id,
                             'sensor_tag': sensor_name_unit,
                             'sensor_url': sensor_img_url,
-                            'BarPlot_XYZ_RMS_Values': [],
-                            'BarPlot_XYZ_Kurtosis_Values': [],
+                            'BarPlot_RMS_XYZ_Values': [],
+                            'BarPlot_Kurtosis_XYZ_Values': [],
                             'BarPlot_XYZ_Time': [],
                             'XYZBackgroundColor': ['#3e95cd'],
                             'XYZBorderColor': ['#3e95cd'],
@@ -425,6 +421,7 @@ class Index(TemplateView):
 
             return redirect("/")
 
+    # 섹션 이동 시 화면 구성
     def post(self, request, *args, **kwargs):
         try:
             # del request.session["userId"]
@@ -461,8 +458,8 @@ class Index(TemplateView):
                             'sensor_id': sensor_id,
                             'sensor_tag': sensor_name_unit,
                             'sensor_url': sensor_img_url,
-                            'BarPlot_XYZ_RMS_Values': [],
-                            'BarPlot_XYZ_Kurtosis_Values': [],
+                            'BarPlot_RMS_XYZ_Values': [],
+                            'BarPlot_Kurtosis_XYZ_Values': [],
                             'BarPlot_XYZ_Time': [],
                             'XYZBackgroundColor': ['#3e95cd'],
                             'XYZBorderColor': ['#3e95cd'],
@@ -679,8 +676,8 @@ class Index(TemplateView):
                             'sensor_id': '',
                             'sensor_tag': '',
                             'sensor_url': '',
-                            'BarPlot_XYZ_RMS_Values': [],
-                            'BarPlot_XYZ_Kurtosis_Values': [],
+                            'BarPlot_RMS_XYZ_Values': [],
+                            'BarPlot_Kurtosis_XYZ_Values': [],
                             'BarPlot_XYZ_Time': [],
                             'XYZBackgroundColor': ['#3e95cd'],
                             'XYZBorderColor': ['#3e95cd'],
@@ -752,7 +749,7 @@ def pages(request):
         # admin.site.index_template = 'admin/custom.html'
         # admin.autodiscover()
 
-        # 2. admin 폴더의 custom.html 삭제해도 이동 가능
+        # 2. templates/admin 경로의 custom.html 삭제해도 이동 가능
 
         if load_template == 'admin':
             return HttpResponseRedirect(reverse('admin:index'))

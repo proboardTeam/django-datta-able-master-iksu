@@ -107,12 +107,12 @@ DATABASES = {
         #         }
         #     },
         #  },
-        # 'NAME': 'userProfile',
+        # 'NAME': 'test',
         # 'CLIENT': {
         #     'host': '127.0.0.1',
         #     'port': 27017,
         #     'username': 'speae',
-        #     'password': "shqk1492!",
+        #     'password': "1234",
         #     'authSource': 'admin',
         #     'authMechanism': 'SCRAM-SHA-1'
         # }

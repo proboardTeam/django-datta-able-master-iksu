@@ -4,7 +4,6 @@
 {% block stylesheets %}
 {% endblock stylesheets %}
 {% block content %}
-{% load repeat %}
 {% load select %}
 {%  csrf_token %}
 {#{{ contents | json_script:'jsonData' }}#}
@@ -475,7 +474,7 @@
                                         label: 'rms [g]',
                                         backgroundColor: {{ get_sensor_data.XYZBackgroundColor | safe }},
                                         borderColor: {{ get_sensor_data.XYZBorderColor | safe }},
-                                        data: {{ get_sensor_data.BarPlot_XYZ_RMS_Values | safe }},
+                                        data: {{ get_sensor_data.BarPlot_RMS_XYZ_Values | safe }},
                                         fill: false
                                     }
                                 ]
@@ -645,7 +644,7 @@
                                         label: 'rms [g]',
                                         backgroundColor: {{ get_sensor_data.XYZBackgroundColor | safe }},
                                         borderColor: {{ get_sensor_data.XYZBorderColor | safe }},
-                                        data: {{ get_sensor_data.BarPlot_XYZ_RMS_Values | safe }},
+                                        data: {{ get_sensor_data.BarPlot_RMS_XYZ_Values | safe }},
                                         fill: false
                                     }
                                 ]
@@ -1116,9 +1115,9 @@
         function Update(datas){
             {#console.log(datas)#}
             const rms_array = []
-            rms_array.push(datas.BarPlot_XYZ_RMS_Values)
+            rms_array.push(datas.BarPlot_RMS_XYZ_Values)
             Promise.all([
-                dataRenderXYZ(datas.sensor_id, datas.sensor_tag, datas.BarPlot_XYZ_RMS_Values, datas.BarPlot_XYZ_Time, datas.BarPlot_Board_Temperature, datas.BarPlot_Board_Time),
+                dataRenderXYZ(datas.sensor_id, datas.sensor_tag, datas.BarPlot_RMS_XYZ_Values, datas.BarPlot_XYZ_Time, datas.BarPlot_Board_Temperature, datas.BarPlot_Board_Time),
                 setTemperature(datas.sensor_tag, datas.BarPlot_Board_Temperature),
                 {#setGaugeValue(datas.sensor_tag, datas.sensor_tag, datas.BarPlot_XYZ_RMS_Values, rms_array.length, datas.Measurement_Start_Time)#}
             ])
