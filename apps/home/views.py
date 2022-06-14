@@ -18,7 +18,6 @@ from django.db.utils import OperationalError
 from django.contrib.auth.decorators import login_required
 from django.utils.decorators import method_decorator
 
-
 # api ---
 import datetime
 
@@ -50,21 +49,55 @@ class Index(TemplateView):
 
                 start_time_str = datetime.datetime.now().strftime("%Y년 %m월 %d일 %H시 %M분 %S초")
 
-                def sensor_func(m_id, s_results):
+                def sensor_func(m_id):
                     sensor_func_results = []
-                    sensor_names = Sensor.objects.filter(machine_fk=m_id).values("sensor_id", "sensor_tag")
+                    try:
+                        sensor_names = Sensor.objects.filter(machine_fk=m_id).values("sensor_id", "sensor_tag")
 
-                    for sensor_name in sensor_names:
-                        sensor_id = sensor_name['sensor_id']
-                        sensor_name_unit = sensor_name['sensor_tag']
-                        sensor = Sensor.objects.get(sensor_id=sensor_id)
-
-                        try:
+                        for sensor_name in sensor_names:
+                            sensor_id = sensor_name['sensor_id']
+                            sensor_name_unit = sensor_name['sensor_tag']
+                            sensor = Sensor.objects.get(sensor_id=sensor_id)
                             sensor_img_url = sensor.sensor_img.url[5:]
-                        except ValueError:
-                            sensor_img_url = ''
+                            board_temp = 0
+                            # s_results.update({
+                            #     sensor_id: {
+                            #         'sensor_id': sensor_id,
+                            #         'sensor_tag': sensor_name_unit,
+                            #         'sensor_url': sensor_img_url,
+                            #         'BarPlot_XYZ_RMS_Values': [],
+                            #         'BarPlot_XYZ_Kurtosis_Values': [],
+                            #         'BarPlot_XYZ_Time': [],
+                            #         'XYZBackgroundColor': ['#3e95cd'],
+                            #         'XYZBorderColor': ['#3e95cd'],
+                            #         'my_board_temperature': board_temperature,
+                            #         'BarPlot_Board_Time': [],
+                            #         'BarPlot_Board_Temperature_BackColor': ['#3e95cd'],
+                            #         'BarPlot_Board_Temperature_BorderColor': ['#3e95cd'],
+                            #         'Measurement_Start_Time': start_time_str,
+                            #     }
+                            # })
+                            s_results = {
+                                'sensor_id': sensor_id,
+                                'sensor_tag': sensor_name_unit,
+                                'sensor_url': sensor_img_url,
+                                'BarPlot_RMS_XYZ_Values': [],
+                                'BarPlot_Kurtosis_XYZ_Values': [],
+                                'BarPlot_XYZ_Time': [],
+                                'XYZBackgroundColor': ['#3e95cd'],
+                                'XYZBorderColor': ['#3e95cd'],
+                                'my_board_temperature': board_temp,
+                                'BarPlot_Board_Time': [],
+                                'BarPlot_Board_Temperature_BackColor': ['#3e95cd'],
+                                'BarPlot_Board_Temperature_BorderColor': ['#3e95cd'],
+                                'Measurement_Start_Time': start_time_str,
+                            }
 
-                        board_temperature = 0
+                            sensor_func_results.append(s_results)
+                            print(f'센서 ID {sensor_id} : 센서 결과 {s_results}')
+
+                    except Sensor.DoesNotExist or ValueError:
+                        board_temp = 0
                         # s_results.update({
                         #     sensor_id: {
                         #         'sensor_id': sensor_id,
@@ -83,15 +116,15 @@ class Index(TemplateView):
                         #     }
                         # })
                         s_results = {
-                            'sensor_id': sensor_id,
-                            'sensor_tag': sensor_name_unit,
-                            'sensor_url': sensor_img_url,
+                            'sensor_id': 0,
+                            'sensor_tag': '',
+                            'sensor_url': '',
                             'BarPlot_RMS_XYZ_Values': [],
                             'BarPlot_Kurtosis_XYZ_Values': [],
                             'BarPlot_XYZ_Time': [],
                             'XYZBackgroundColor': ['#3e95cd'],
                             'XYZBorderColor': ['#3e95cd'],
-                            'my_board_temperature': board_temperature,
+                            'my_board_temperature': board_temp,
                             'BarPlot_Board_Time': [],
                             'BarPlot_Board_Temperature_BackColor': ['#3e95cd'],
                             'BarPlot_Board_Temperature_BorderColor': ['#3e95cd'],
@@ -99,80 +132,94 @@ class Index(TemplateView):
                         }
 
                         sensor_func_results.append(s_results)
-                        print(f'센서 ID {sensor_id} : 센서 결과 {s_results}')
 
                     return sensor_func_results
 
-                def machine_func(f_id, m_results):
-                    sensor_results = {}
+                def machine_func(f_id):
                     machine_func_results = []
                     machine_pending = 0
-                    machines = Machine.objects.filter(factory_fk=f_id).values("machine_id", "machine_name")
 
-                    for machine in machines:
-                        if machine_pending:
-                            sensor_results = {}
-                        machine_id = machine['machine_id']
-                        machine_name = machine['machine_name']
-                        machine_get = Machine.objects.get(machine_id=machine_id)
+                    try:
+                        machines = Machine.objects.filter(factory_fk=f_id).values("machine_id", "machine_name")
 
-                        try:
+                        for machine in machines:
+                            machine_id = machine['machine_id']
+                            machine_name = machine['machine_name']
+                            machine_get = Machine.objects.get(machine_id=machine_id)
+
                             machine_img_url = machine_get.machine_img.url[5:]
-                        except ValueError:
-                            machine_img_url = ''
 
-                        machine_type = MachineType.objects.get(machine_type_id=machine_get.machine_type_fk_id)
-                        # m_results.update({
-                        #     machine_id: {
-                        #         'machine_id': machine_id,
-                        #         'machine_name': machine_name,
-                        #         'machine_img_url': machine_img_url,
-                        #         'machine_type_name': machine_type.machine_type_name,
-                        #         'sensor_results': sensor_func(machine_id, sensor_results),
-                        #     }
-                        # })
-                        # m_results.append([
-                        #     {
-                        #         'machine_id': machine_id,
-                        #         'machine_name': machine_name,
-                        #         'machine_img_url': machine_img_url,
-                        #         'machine_type_name': machine_type.machine_type_name,
-                        #         'sensor_results': sensor_func(machine_id, sensor_results),
-                        #      }
-                        # ])
+                            machine_type = MachineType.objects.get(machine_type_id=machine_get.machine_type_fk_id)
+                            # m_results.update({
+                            #     machine_id: {
+                            #         'machine_id': machine_id,
+                            #         'machine_name': machine_name,
+                            #         'machine_img_url': machine_img_url,
+                            #         'machine_type_name': machine_type.machine_type_name,
+                            #         'sensor_results': sensor_func(machine_id, sensor_results),
+                            #     }
+                            # })
+                            # m_results.append([
+                            #     {
+                            #         'machine_id': machine_id,
+                            #         'machine_name': machine_name,
+                            #         'machine_img_url': machine_img_url,
+                            #         'machine_type_name': machine_type.machine_type_name,
+                            #         'sensor_results': sensor_func(machine_id, sensor_results),
+                            #      }
+                            # ])
+                            m_results = {
+                                'machine_id': machine_id,
+                                'machine_name': machine_name,
+                                'machine_img_url': machine_img_url,
+                                'machine_type_name': machine_type.machine_type_name,
+                                'sensor_results': sensor_func(machine_id),
+                            }
+
+                            machine_func_results.append(m_results)
+                            print(f'설비 ID {machine_id} : 설비 결과 {machine_func_results}')
+
+                    except Machine.DoesNotExist or ValueError:
                         m_results = {
-                            'machine_id': machine_id,
-                            'machine_name': machine_name,
-                            'machine_img_url': machine_img_url,
-                            'machine_type_name': machine_type.machine_type_name,
-                            'sensor_results': sensor_func(machine_id, sensor_results),
+                            'machine_id': 0,
+                            'machine_name': '',
+                            'machine_img_url': '',
+                            'machine_type_name': '',
+                            'sensor_results': sensor_func(0),
                         }
 
-                        # dictionary value 가 계속 추가되는 것을 막음
-                        machine_pending += 1
                         machine_func_results.append(m_results)
-                        print(f'설비 ID {machine_id} : 설비 결과 {machine_func_results}')
 
                     return machine_func_results
 
-                def factory_func(c_id, f_results):
-                    machine_results = {}
+                def factory_func(c_id):
                     factory_func_results = []
-                    factory_pending = 0
-                    factories = Factory.objects.filter(company_fk=c_id).values_list("factory_id", "factory_name")
-                    factories = dict(factories)
-                    for factory_id, factory_name in factories.items():
-                        if factory_pending:
-                            machine_results = {}
 
-                        factory_get = Factory.objects.get(factory_id=factory_id)
+                    try:
+                        factories = Factory.objects.filter(company_fk=c_id).values_list("factory_id", "factory_name")
+                        factories = dict(factories)
+                        for factory_id, factory_name in factories.items():
 
-                        try:
+                            factory_get = Factory.objects.get(factory_id=factory_id)
                             factory_img_url = factory_get.factory_img.url[5:]
 
-                        except ValueError:
+                            f_results = {
+                                'factory_id': factory_id,
+                                'factory_name': factory_name,
+                                'factory_img_url': factory_img_url,
+                                'machine_results': machine_func(factory_id), }
 
-                            factory_img_url = ''
+                            factory_func_results.append(f_results)
+                            print(f'현장 ID {factory_id} : 현장 결과 {factory_func_results}')
+
+                    except Factory.DoesNotExist or ValueError:
+                        f_results = {
+                            'factory_id': 0,
+                            'factory_name': '',
+                            'factory_img_url': '',
+                            'machine_results': machine_func(0), }
+
+                        factory_func_results.append(f_results)
 
                         # f_results.update({
                         #     factory_id: {
@@ -190,27 +237,35 @@ class Index(TemplateView):
                         #         'machine_results': machine_func(factory_id, machine_results),
                         #     }
                         # ])
-                        f_results = {
-                            'factory_id': factory_id,
-                            'factory_name': factory_name,
-                            'factory_img_url': factory_img_url,
-                            'machine_results': machine_func(factory_id, machine_results), }
-
-                        factory_pending += 1
-                        factory_func_results.append(f_results)
-                        print(f'현장 ID {factory_id} : 현장 결과 {factory_func_results}')
 
                     return factory_func_results
 
-                def company_func(result_id, c_results):
-                    factory_results = {}
+                def company_func(result_id):
                     company_func_results = []
-                    company_get = CompanyProfile.objects.get(company_id=result_id)
-                    company_type = CompanyType.objects.get(company_type_id=company_get.company_type_fk_id)
+
                     try:
+                        company_get = CompanyProfile.objects.get(company_id=result_id)
+                        company_type = CompanyType.objects.get(company_type_id=company_get.company_type_fk_id)
                         company_type_img_url = company_type.company_type_img.url[5:]
-                    except ValueError:
-                        company_type_img_url = ''
+
+                        c_results = {
+                            'company_id': company_get.company_id,
+                            'company_name': company_get.company_name,
+                            'company_type_img_url': company_type_img_url,
+                            'factory_results': factory_func(company_get.company_id), }
+
+                        company_func_results.append(c_results)
+                        print(f'회사 ID {company_get.company_id} : 회사 조회 결과 {c_results}')
+
+                    except CompanyProfile.DoesNotExist or ValueError:
+
+                        c_results = {
+                            'company_id': 0,
+                            'company_name': '',
+                            'company_type_img_url': '',
+                            'factory_results': factory_func(0), }
+
+                        company_func_results.append(c_results)
 
                     # c_results.update({
                     #     company_get.company_id: {
@@ -228,139 +283,82 @@ class Index(TemplateView):
                     #         'factory_results': factory_func(company_get.company_id, factory_results),
                     #     }
                     # ])
-                    c_results = {
-                        'company_id': company_get.company_id,
-                        'company_name': company_get.company_name,
-                        'company_type_img_url': company_type_img_url,
-                        'factory_results': factory_func(company_get.company_id, factory_results), }
-
-                    company_func_results.append(c_results)
-                    print(f'회사 ID {company_get.company_id} : 회사 조회 결과 {c_results}')
 
                     return company_func_results
 
-                def result_func(q_results):
-                    company_results = {}
+                def result_func():
                     results_array = []
-                    companies = CompanyProfile.objects.exclude(company_id=1).values_list("company_id", "company_name")
-                    companies = dict(companies)
-                    company_pending = 0
                     view_points = []
-                    for company_id, company_name in companies.items():
-                        print(f'company_id {company_id}')
-                        print(f'company_name {company_name}')
-                        if company_pending:
-                            company_results = {}
 
-                        # q_results.update({
-                        #     company_id: {
-                        #         'company_results': company_func(company_id, company_results),
-                        #     }
-                        # })
+                    try:
+                        companies = CompanyProfile.objects.exclude(company_id=1).values_list("company_id", "company_name")
+                        companies = dict(companies)
+                        print('companies : ', companies)
 
-                        # q_results.append([
-                        #     {
-                        #         'company_results': company_func(company_id, company_results),
-                        #     }
-                        # ])
-                        view_points.append(company_id)
+                        try:
+                            for company_id, company_name in companies.items():
+                                print('try .. ')
+                                # print(f'company_id {company_id}')
+                                # print(f'company_name {company_name}')
 
-                    q_results = {'company_results': company_func(view_points[0], company_results), }
-                    results_array.append(q_results)
+                                # q_results.update({
+                                #     company_id: {
+                                #         'company_results': company_func(company_id, company_results),
+                                #     }
+                                # })
 
-                    company_pending += 1
+                                # q_results.append([
+                                #     {
+                                #         'company_results': company_func(company_id, company_results),
+                                #     }
+                                # ])
+                                print('company_id : ', company_id)
+                                view_points.append(company_id)
+                                q_results = {'company_results': company_func(view_points[0]), }
+                                results_array.append(q_results)
 
-                    return results_array, view_points[0]
+                                return results_array, view_points[0]
 
-                try:
-                    if username == "리쉐니에":
+                        except TypeError:
+                            q_results = {'company_results': company_func([0, ]), }
+                            results_array.append(q_results)
 
-                        # company_info = RequestTotalSerializer.request_company_id_check_one(user_info.get().company_fk_id)
-                        # print(f'회사명 : {company_info.company_name}')
-                        # company_name = company_info.company_name
-                        # company_type = CompanyType.objects.get(company_type_id=company_info.company_type_fk_id)
-                        query_results = {}
-                        (results, view_point) = result_func(query_results)
-                        contents = {
-                            'segment': 'index',
-                            'username': username,
-                            'view_point': view_point,
-                            'results': results,
-                        }
-                        print(f"쿼리 조회 결과 {contents}")
+                            return results_array, [0, ]
 
-                        return render(request, 'home/index.html', {'contents': contents})
+                    except CompanyProfile.DoesNotExist or IndexError:
+                        q_results = {'company_results': company_func(0), }
+                        results_array.append(q_results)
 
-                    else:
-                        board_temperature = 0
-                        sensor_other_results = {}
-                        machine_other_results = {}
-                        factory_other_results = {}
-                        company_other_results = {}
-                        sensor_other_results.update({
-                            0: {
-                                'sensor_id': '',
-                                'sensor_tag': '',
-                                'sensor_url': '',
-                                'BarPlot_XYZ_RMS_Values': [],
-                                'BarPlot_XYZ_Kurtosis_Values': [],
-                                'BarPlot_XYZ_Time': [],
-                                'XYZBackgroundColor': ['#3e95cd'],
-                                'XYZBorderColor': ['#3e95cd'],
-                                'my_board_temperature': board_temperature,
-                                'BarPlot_Board_Time': [],
-                                'BarPlot_Board_Temperature_BackColor': ['#3e95cd'],
-                                'BarPlot_Board_Temperature_BorderColor': ['#3e95cd'],
-                                'Measurement_Start_Time': start_time_str,
-                            }
-                        })
+                        return results_array, [0, ]
 
-                        machine_other_results.update({
-                            0: {
-                                'machine_id': 0,
-                                'machine_name': '',
-                                'machine_img_url': '',
-                                'machine_type_name': '',
-                                'sensor_results': sensor_other_results,
-                            }
-                        })
+                if username == "리쉐니에":
 
-                        factory_other_results.update({
-                            0: {
-                                'factory_id': 0,
-                                'factory_name': '',
-                                'factory_img_url': '',
-                                'machine_results': machine_other_results,
-                            }
-                        })
+                    # company_info = RequestTotalSerializer.request_company_id_check_one(user_info.get().company_fk_id)
+                    # print(f'회사명 : {company_info.company_name}')
+                    # company_name = company_info.company_name
+                    # company_type = CompanyType.objects.get(company_type_id=company_info.company_type_fk_id)
+                    try:
+                        (results, view_point) = result_func()
+                    except TypeError:
+                        results = []
+                        view_point = 0
 
-                        company_other_results.update({
-                            0: {
-                                'company_id': 0,
-                                'company_name': '',
-                                'company_type_img_url': '',
-                                'factory_results': factory_other_results,
-                            }
-                        })
+                    contents = {
+                        'segment': 'index',
+                        'username': username,
+                        'view_point': view_point,
+                        'results': results,
+                    }
+                    print(f"쿼리 조회 결과 {contents}")
 
-                        contents = {
-                            'segment': 'index',
-                            'username': username,
-                            'results': company_other_results
-                        }
+                    return render(request, 'home/index.html', {'contents': contents})
 
-                        html_template = loader.get_template('home/index.html')
-
-                        return HttpResponse(html_template.render(contents, request))
-
-                # 데이터베이스가 존재하지 않는 경우
-                except Server.DoesNotExist or Machine.DoesNotExist or Sensor.DoesNotExist or OperationalError:
-                    html_template = loader.get_template('home/index.html')
+                else:
                     board_temperature = 0
                     sensor_other_results = {}
                     machine_other_results = {}
                     factory_other_results = {}
-                    results = {}
+                    company_other_results = {}
                     sensor_other_results.update({
                         0: {
                             'sensor_id': '',
@@ -398,8 +396,11 @@ class Index(TemplateView):
                         }
                     })
 
-                    results.update({
+                    company_other_results.update({
                         0: {
+                            'company_id': 0,
+                            'company_name': '',
+                            'company_type_img_url': '',
                             'factory_results': factory_other_results,
                         }
                     })
@@ -407,11 +408,10 @@ class Index(TemplateView):
                     contents = {
                         'segment': 'index',
                         'username': username,
-                        'company_name': '',
-                        'company_type_name': '',
-                        'company_type_img_url': '',
-                        'results': results
+                        'results': company_other_results
                     }
+
+                    html_template = loader.get_template('home/index.html')
 
                     return HttpResponse(html_template.render(contents, request))
 
@@ -438,32 +438,49 @@ class Index(TemplateView):
 
                 start_time_str = datetime.datetime.now().strftime("%Y년 %m월 %d일 %H시 %M분 %S초")
 
-                def sensor_func(m_id, s_results):
+                def sensor_func(m_id):
                     sensor_func_results = []
-                    sensor_names = Sensor.objects.filter(machine_fk=m_id).values("sensor_id", "sensor_tag")
 
-                    for sensor_name in sensor_names:
-                        sensor_id = sensor_name['sensor_id']
-                        sensor_name_unit = sensor_name['sensor_tag']
-                        sensor = Sensor.objects.get(sensor_id=sensor_id)
+                    try:
+                        sensor_names = Sensor.objects.filter(machine_fk=m_id).values("sensor_id", "sensor_tag")
 
-                        try:
+                        for sensor_name in sensor_names:
+                            sensor_id = sensor_name['sensor_id']
+                            sensor_name_unit = sensor_name['sensor_tag']
+                            sensor = Sensor.objects.get(sensor_id=sensor_id)
                             sensor_img_url = sensor.sensor_img.url[5:]
-                        except ValueError:
-                            sensor_img_url = ''
+                            board_temperature = 0
 
-                        board_temperature = 0
+                            s_results = {
+                                'sensor_id': sensor_id,
+                                'sensor_tag': sensor_name_unit,
+                                'sensor_url': sensor_img_url,
+                                'BarPlot_RMS_XYZ_Values': [],
+                                'BarPlot_Kurtosis_XYZ_Values': [],
+                                'BarPlot_XYZ_Time': [],
+                                'XYZBackgroundColor': ['#3e95cd'],
+                                'XYZBorderColor': ['#3e95cd'],
+                                'my_board_temperature': board_temperature,
+                                'BarPlot_Board_Time': [],
+                                'BarPlot_Board_Temperature_BackColor': ['#3e95cd'],
+                                'BarPlot_Board_Temperature_BorderColor': ['#3e95cd'],
+                                'Measurement_Start_Time': start_time_str,
+                            }
 
+                            sensor_func_results.append(s_results)
+                            print(f'센서 ID {sensor_id} : 센서 결과 {s_results}')
+
+                    except Sensor.DoesNotExist or ValueError:
                         s_results = {
-                            'sensor_id': sensor_id,
-                            'sensor_tag': sensor_name_unit,
-                            'sensor_url': sensor_img_url,
+                            'sensor_id': 0,
+                            'sensor_tag': '',
+                            'sensor_url': '',
                             'BarPlot_RMS_XYZ_Values': [],
                             'BarPlot_Kurtosis_XYZ_Values': [],
                             'BarPlot_XYZ_Time': [],
                             'XYZBackgroundColor': ['#3e95cd'],
                             'XYZBorderColor': ['#3e95cd'],
-                            'my_board_temperature': board_temperature,
+                            'my_board_temperature': 0,
                             'BarPlot_Board_Time': [],
                             'BarPlot_Board_Temperature_BackColor': ['#3e95cd'],
                             'BarPlot_Board_Temperature_BorderColor': ['#3e95cd'],
@@ -471,202 +488,131 @@ class Index(TemplateView):
                         }
 
                         sensor_func_results.append(s_results)
-                        print(f'센서 ID {sensor_id} : 센서 결과 {s_results}')
 
                     return sensor_func_results
 
-                def machine_func(f_id, m_results):
-                    sensor_results = {}
+                def machine_func(f_id):
                     machine_func_results = []
-                    machine_pending = 0
-                    machines = Machine.objects.filter(factory_fk=f_id).values("machine_id", "machine_name")
 
-                    for machine in machines:
-                        if machine_pending:
-                            sensor_results = {}
-                        machine_id = machine['machine_id']
-                        machine_name = machine['machine_name']
-                        machine_get = Machine.objects.get(machine_id=machine_id)
+                    try:
+                        machines = Machine.objects.filter(factory_fk=f_id).values("machine_id", "machine_name")
 
-                        try:
+                        for machine in machines:
+                            machine_id = machine['machine_id']
+                            machine_name = machine['machine_name']
+                            machine_get = Machine.objects.get(machine_id=machine_id)
                             machine_img_url = machine_get.machine_img.url[5:]
-                        except ValueError:
-                            machine_img_url = ''
 
-                        machine_type = MachineType.objects.get(machine_type_id=machine_get.machine_type_fk_id)
 
+                            machine_type = MachineType.objects.get(machine_type_id=machine_get.machine_type_fk_id)
+
+                            m_results = {
+                                'machine_id': machine_id,
+                                'machine_name': machine_name,
+                                'machine_img_url': machine_img_url,
+                                'machine_type_name': machine_type.machine_type_name,
+                                'sensor_results': sensor_func(machine_id),
+                            }
+
+                            machine_func_results.append(m_results)
+                            print(f'설비 ID {machine_id} : 설비 결과 {machine_func_results}')
+
+                    except Machine.DoesNotExist or ValueError:
                         m_results = {
-                            'machine_id': machine_id,
-                            'machine_name': machine_name,
-                            'machine_img_url': machine_img_url,
-                            'machine_type_name': machine_type.machine_type_name,
-                            'sensor_results': sensor_func(machine_id, sensor_results),
+                            'machine_id': 0,
+                            'machine_name': '',
+                            'machine_img_url': '',
+                            'machine_type_name': '',
+                            'sensor_results': sensor_func(0),
                         }
 
-                        # dictionary value 가 계속 추가되는 것을 막음
-                        machine_pending += 1
                         machine_func_results.append(m_results)
-                        print(f'설비 ID {machine_id} : 설비 결과 {machine_func_results}')
 
                     return machine_func_results
 
-                def factory_func(c_id, f_results):
-                    machine_results = {}
+                def factory_func(c_id):
                     factory_func_results = []
-                    factory_pending = 0
-                    factories = Factory.objects.filter(company_fk=c_id).values_list("factory_id", "factory_name")
-                    factories = dict(factories)
-                    for factory_id, factory_name in factories.items():
-                        if factory_pending:
-                            machine_results = {}
 
-                        factory_get = Factory.objects.get(factory_id=factory_id)
+                    try:
+                        factories = Factory.objects.filter(company_fk=c_id).values_list("factory_id", "factory_name")
+                        factories = dict(factories)
+                        for factory_id, factory_name in factories.items():
 
-                        try:
+                            factory_get = Factory.objects.get(factory_id=factory_id)
                             factory_img_url = factory_get.factory_img.url[5:]
 
-                        except ValueError:
+                            f_results = {
+                                'factory_id': factory_id,
+                                'factory_name': factory_name,
+                                'factory_img_url': factory_img_url,
+                                'machine_results': machine_func(factory_id), }
 
-                            factory_img_url = ''
+                            factory_func_results.append(f_results)
+                            print(f'현장 ID {factory_id} : 현장 결과 {factory_func_results}')
 
+                    except Factory.DoesNotExist or ValueError:
                         f_results = {
-                            'factory_id': factory_id,
-                            'factory_name': factory_name,
-                            'factory_img_url': factory_img_url,
-                            'machine_results': machine_func(factory_id, machine_results), }
+                            'factory_id': 0,
+                            'factory_name': '',
+                            'factory_img_url': '',
+                            'machine_results': machine_func(0), }
 
-                        factory_pending += 1
                         factory_func_results.append(f_results)
-                        print(f'현장 ID {factory_id} : 현장 결과 {factory_func_results}')
 
                     return factory_func_results
 
-                def company_func(result_id, c_results):
-                    factory_results = {}
+                def company_func(result_id):
                     company_func_results = []
-                    company_get = CompanyProfile.objects.get(company_id=result_id)
-                    company_type = CompanyType.objects.get(company_type_id=company_get.company_type_fk_id)
                     try:
+                        company_get = CompanyProfile.objects.get(company_id=result_id)
+                        company_type = CompanyType.objects.get(company_type_id=company_get.company_type_fk_id)
                         company_type_img_url = company_type.company_type_img.url[5:]
-                    except ValueError:
-                        company_type_img_url = ''
 
-                    c_results = {
-                        'company_id': company_get.company_id,
-                        'company_name': company_get.company_name,
-                        'company_type_img_url': company_type_img_url,
-                        'factory_results': factory_func(company_get.company_id, factory_results), }
+                        c_results = {
+                            'company_id': company_get.company_id,
+                            'company_name': company_get.company_name,
+                            'company_type_img_url': company_type_img_url,
+                            'factory_results': factory_func(company_get.company_id), }
 
-                    company_func_results.append(c_results)
-                    print(f'회사 ID {company_get.company_id} : 회사 조회 결과 {c_results}')
+                        company_func_results.append(c_results)
+                        print(f'회사 ID {company_get.company_id} : 회사 조회 결과 {c_results}')
+
+                    except CompanyProfile.DoesNotExist or ValueError:
+                        c_results = {
+                            'company_id': 0,
+                            'company_name': '',
+                            'company_type_img_url': '',
+                            'factory_results': factory_func(0), }
+
+                        company_func_results.append(c_results)
 
                     return company_func_results
 
                 def result_func(q_results, c_id):
-                    company_results = {}
                     results_array = []
-                    company_pending = 0
-                    company_units = 0
 
-                    if company_pending:
-                        company_results = {}
-
-                    company_units += 1
-
-                    q_results = {'company_results': company_func(c_id, company_results), }
+                    q_results = {'company_results': company_func(c_id), }
                     results_array.append(q_results)
-
-                    company_pending += 1
 
                     return results_array, c_id
 
-                try:
-                    if username == "리쉐니에":
+                if username == "리쉐니에":
 
-                        section_move = 1
-                        query_results = {}
-                        (results, view_point) = result_func(query_results, request.POST['company_id'])
-                        viewer = {
-                            'segment': 'index',
-                            'username': username,
-                            'view_point': view_point,
-                            'results': results,
-                            'section_move': section_move,
-                        }
-                        print(f"쿼리 조회 결과 {viewer}")
+                    section_move = 1
+                    query_results = {}
+                    (results, view_point) = result_func(query_results, request.POST['company_id'])
+                    viewer = {
+                        'segment': 'index',
+                        'username': username,
+                        'view_point': view_point,
+                        'results': results,
+                        'section_move': section_move,
+                    }
+                    print(f"쿼리 조회 결과 {viewer}")
 
-                        return render(request, 'home/index.html', {'viewer': viewer})
+                    return render(request, 'home/index.html', {'viewer': viewer})
 
-                    else:
-                        sensor_other_results = []
-                        machine_other_results = []
-                        factory_other_results = []
-                        company_other_results = []
-                        sensor_other_results.append([
-                            {
-                                'sensor_id': '',
-                                'sensor_tag': '',
-                                'sensor_url': '',
-                                'BarPlot_XYZ_RMS_Values': [],
-                                'BarPlot_XYZ_Kurtosis_Values': [],
-                                'BarPlot_XYZ_Time': [],
-                                'XYZBackgroundColor': ['#3e95cd'],
-                                'XYZBorderColor': ['#3e95cd'],
-                                'my_board_temperature': [],
-                                'BarPlot_Board_Time': [],
-                                'BarPlot_Board_Temperature_BackColor': ['#3e95cd'],
-                                'BarPlot_Board_Temperature_BorderColor': ['#3e95cd'],
-                                'Measurement_Start_Time': start_time_str,
-                            }
-                        ])
-
-                        machine_other_results.append([
-                            {
-                                'machine_id': 0,
-                                'machine_name': '',
-                                'machine_img_url': '',
-                                'machine_type_name': '',
-                                'sensor_results': sensor_other_results,
-                            }
-                        ])
-
-                        factory_other_results.append([
-                            {
-                                'factory_id': 0,
-                                'factory_name': '',
-                                'factory_img_url': '',
-                                'machine_results': machine_other_results,
-                            }
-                        ])
-
-                        company_other_results.append([
-                            {
-                                'company_id': 0,
-                                'company_name': '',
-                                'company_type_img_url': '',
-                                'factory_results': factory_other_results,
-                            }
-                        ])
-
-                        section_move = 0
-                        query_results = {}
-                        (results, view_point) = result_func(query_results, request.POST['company_id'])
-                        contents = {
-                            'segment': 'index',
-                            'username': username,
-                            'view_point': view_point,
-                            'results': results,
-                            'section_move': section_move,
-                        }
-
-                        html_template = loader.get_template('home/index.html')
-
-                        return HttpResponse(html_template.render(contents, request))
-
-                # 데이터베이스가 존재하지 않는 경우
-                except Server.DoesNotExist or Machine.DoesNotExist or Sensor.DoesNotExist or OperationalError:
-                    html_template = loader.get_template('home/index.html')
-
+                else:
                     sensor_other_results = []
                     machine_other_results = []
                     factory_other_results = []
@@ -676,8 +622,8 @@ class Index(TemplateView):
                             'sensor_id': '',
                             'sensor_tag': '',
                             'sensor_url': '',
-                            'BarPlot_RMS_XYZ_Values': [],
-                            'BarPlot_Kurtosis_XYZ_Values': [],
+                            'BarPlot_XYZ_RMS_Values': [],
+                            'BarPlot_XYZ_Kurtosis_Values': [],
                             'BarPlot_XYZ_Time': [],
                             'XYZBackgroundColor': ['#3e95cd'],
                             'XYZBorderColor': ['#3e95cd'],
@@ -728,7 +674,9 @@ class Index(TemplateView):
                         'section_move': section_move,
                     }
 
-                return HttpResponse(html_template.render(contents, request))
+                    html_template = loader.get_template('home/index.html')
+
+                    return HttpResponse(html_template.render(contents, request))
 
         # 기타 데이터가 잘못된 경우
         except KeyError:

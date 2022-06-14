@@ -10,6 +10,7 @@ from .forms import LoginForm, SignUpForm, UpdateForm, DeleteForm
 from .serializer import RequestSerializer
 from django.db import DatabaseError
 from django.contrib.auth.hashers import check_password
+from apps.factory.models import CompanyProfile
 
 
 def login_view(request):
@@ -84,6 +85,9 @@ def register_user(request):
                     else:
                         user = RequestSerializer.request_super_create(username=username, email=email, company=company,
                                                                       password=raw_password)
+                        company_profile = CompanyProfile(company_name=company)
+                        company_profile.save()
+
                     # form.user = user
                     # form.company = company
                     # form.save()
